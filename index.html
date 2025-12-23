@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Stores Audit">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <title>Stores Audit</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --accent: #22d3ee;
+            --accent-dim: #0891b2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #475569;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+        }
+
+        /* Header */
+        .header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .header-status {
+            font-size: 13px;
+            color: var(--accent);
+            background: rgba(34, 211, 238, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Main */
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* Screens */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* Welcome */
+        .welcome-hero {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .welcome-icon { font-size: 64px; margin-bottom: 24px; }
+        .welcome-title { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+        .welcome-subtitle { color: var(--text-secondary); font-size: 16px; line-height: 1.5; max-width: 280px; margin: 0 auto 40px; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .card-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(34, 211, 238, 0.1); border-radius: var(--radius-sm); font-size: 20px; }
+        .card-title { font-size: 16px; font-weight: 600; }
+        .card-desc { font-size: 13px; color: var(--text-secondary); }
+
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-input { width: 100%; padding: 14px 16px; font-size: 16px; font-family: inherit; background: var(--bg-primary); border: 2px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); outline: none; }
+        .form-input:focus { border-color: var(--accent); }
+        .form-input::placeholder { color: var(--text-muted); }
+        .form-row { display: flex; gap: 12px; }
+        .form-row .form-group { flex: 1; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--accent); color: var(--bg-primary); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: var(--bg-primary); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-block { width: 100%; }
+        .btn-lg { padding: 18px 32px; font-size: 17px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Capture Location */
+        .capture-location {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .location-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+        .location-value { font-size: 32px; font-weight: 700; color: var(--accent); }
+        .location-sublabel { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+        /* Camera */
+        .camera-area {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px dashed var(--border);
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .camera-icon { font-size: 48px; margin-bottom: 16px; }
+        .camera-instruction { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+        .camera-hint { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+        .camera-input { display: none; }
+        .capture-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 4px solid var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
+        }
+        .capture-btn:active { transform: scale(0.95); }
+        .capture-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Photo Preview */
+        .photo-preview { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .photo-thumb {
+            position: relative;
+            width: calc(33.333% - 8px);
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-count-badge {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Action Grid */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .action-grid .btn-block { grid-column: span 2; }
+
+        /* Progress */
+        .progress-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .progress-title { font-size: 14px; font-weight: 600; }
+        .progress-count { font-size: 14px; color: var(--accent); }
+        .progress-bar { height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .stat-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; }
+
+        /* Tray Accordion */
+        .tray-accordion { background: var(--bg-secondary); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+        .tray-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            cursor: pointer;
+            background: var(--bg-secondary);
+            border: none;
+            width: 100%;
+            text-align: left;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        .tray-header-info { display: flex; align-items: center; gap: 12px; }
+        .tray-header-icon { font-size: 24px; }
+        .tray-header-title { font-weight: 600; font-size: 16px; }
+        .tray-header-count { font-size: 13px; color: var(--text-secondary); }
+        .tray-header-arrow { font-size: 20px; color: var(--text-muted); transition: transform 0.2s; }
+        .tray-accordion.open .tray-header-arrow { transform: rotate(180deg); }
+        .tray-content { display: none; padding: 0 16px 16px; }
+        .tray-accordion.open .tray-content { display: block; }
+
+        /* Slot List */
+        .slot-list { background: var(--bg-primary); border-radius: var(--radius-sm); overflow: hidden; }
+        .slot-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+        .slot-item:last-child { border-bottom: none; }
+        .slot-status { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; margin-right: 12px; }
+        .slot-status.done { background: rgba(16, 185, 129, 0.2); }
+        .slot-status.empty { background: rgba(245, 158, 11, 0.2); }
+        .slot-info { flex: 1; }
+        .slot-name { font-weight: 600; font-size: 14px; }
+        .slot-meta { font-size: 12px; color: var(--text-secondary); }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-state-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.5; }
+        .empty-state-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+        .empty-state-desc { color: var(--text-secondary); font-size: 14px; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: calc(100px + var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s;
+            border: 1px solid var(--border);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--bg-secondary); border-radius: var(--radius); width: 100%; max-width: 400px; }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .modal-title { font-size: 18px; font-weight: 700; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            flex-shrink: 0;
+            display: flex;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .nav-item.active { color: var(--accent); }
+        .nav-item-icon { font-size: 22px; margin-bottom: 4px; }
+
+        .mt-20 { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1 class="header-title">📦 Stores Audit</h1>
+            <span class="header-status" id="headerStatus">Ready</span>
+        </header>
+
+        <main class="main">
+            <!-- WELCOME -->
+            <div class="screen active" id="screenWelcome">
+                <div class="welcome-hero">
+                    <div class="welcome-icon">📷</div>
+                    <h2 class="welcome-title">Stores Audit</h2>
+                    <p class="welcome-subtitle">Capture inventory photos with a structured workflow</p>
+                </div>
+
+                <div class="card" id="resumeCard" style="display: none;">
+                    <div class="card-header">
+                        <div class="card-icon">▶️</div>
+                        <div>
+                            <div class="card-title">Resume Session</div>
+                            <div class="card-desc" id="resumeInfo"></div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="App.resumeSession()">Continue Audit</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">🆕</div>
+                        <div>
+                            <div class="card-title">New Audit Session</div>
+                            <div class="card-desc">Start a fresh inventory capture</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-block" onclick="App.showSetup()">Start New Session</button>
+                </div>
+            </div>
+
+            <!-- SETUP -->
+            <div class="screen" id="screenSetup">
+                <h2 style="margin-bottom: 20px;">Setup Your Storage</h2>
+                <div class="card">
+                    <div class="form-group">
+                        <label class="form-label">Storage unit name</label>
+                        <input type="text" class="form-input" id="unitName" placeholder="Tray, Shelf, Bay..." value="Tray">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Position name</label>
+                        <input type="text" class="form-input" id="slotName" placeholder="Slot, Bin, Position..." value="Slot">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Total Units</label>
+                            <input type="number" class="form-input" id="totalUnits" value="40" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Slots per Unit</label>
+                            <input type="number" class="form-input" id="slotsPerUnit" value="20" min="1">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg btn-block mt-20" onclick="App.startCapture()">Begin Capture →</button>
+            </div>
+
+            <!-- CAPTURE -->
+            <div class="screen" id="screenCapture">
+                <div class="progress-section">
+                    <div class="progress-header">
+                        <span class="progress-title">Progress</span>
+                        <span class="progress-count" id="progressCount">0 / 0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="capture-location">
+                    <div class="location-label" id="unitLabel">Tray</div>
+                    <div class="location-value" id="currentLocation">--</div>
+                    <div class="location-sublabel" id="captureStep">Ready to start</div>
+                </div>
+
+                <div class="camera-area">
+                    <div class="camera-icon">📸</div>
+                    <div class="camera-instruction" id="cameraInstruction">Take a Photo</div>
+                    <div class="camera-hint" id="cameraHint">Tap the button below</div>
+                    <input type="file" class="camera-input" id="cameraInput" accept="image/*" capture="environment">
+                    <button class="capture-btn" id="captureBtn" onclick="App.triggerCamera()">📷</button>
+                </div>
+
+                <div class="photo-preview" id="photoPreview"></div>
+                <div class="action-grid" id="actionGrid"></div>
+            </div>
+
+            <!-- REVIEW -->
+            <div class="screen" id="screenReview">
+                <h2 style="margin-bottom: 20px;">Review & Export</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTrays">0</div>
+                        <div class="stat-label">Trays</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statSlots">0</div>
+                        <div class="stat-label">Slots</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statPhotos">0</div>
+                        <div class="stat-label">Photos</div>
+                    </div>
+                </div>
+                <div id="trayList"></div>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-state-icon">📭</div>
+                    <div class="empty-state-title">No Data Yet</div>
+                    <div class="empty-state-desc">Start capturing to see progress</div>
+                </div>
+                <button class="btn btn-success btn-lg btn-block mt-20" id="exportBtn" onclick="App.exportData()">📥 Export All Data</button>
+                <button class="btn btn-danger btn-block mt-20" onclick="App.confirmClearData()">🗑️ Clear All Data</button>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-screen="screenWelcome" onclick="App.showScreen('screenWelcome')">
+                <span class="nav-item-icon">🏠</span> Home
+            </button>
+            <button class="nav-item" data-screen="screenCapture" onclick="App.showScreen('screenCapture')">
+                <span class="nav-item-icon">📷</span> Capture
+            </button>
+            <button class="nav-item" data-screen="screenReview" onclick="App.showScreen('screenReview')">
+                <span class="nav-item-icon">📋</span> Review
+            </button>
+        </nav>
+
+        <div class="toast" id="toast"></div>
+
+        <div class="modal-overlay" id="modalOverlay" onclick="App.closeModal(event)">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header"><h3 class="modal-title" id="modalTitle"></h3></div>
+                <div class="modal-body" id="modalBody"></div>
+                <div class="modal-footer" id="modalFooter"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============================================
+// APPLICATION
+// ============================================
+const App = {
+    config: {
+        unitName: 'Tray',
+        slotName: 'Slot',
+        totalUnits: 40,
+        slotsPerUnit: 20
+    },
+    state: {
+        phase: 'idle', // idle, unit, slot, item
+        currentUnit: null,
+        currentSlot: null,
+        itemPhotos: []
+    },
+    data: {
+        units: {}
+    },
+    db: null
+};
+
+// ============================================
+// DATABASE
+// ============================================
+async function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('StoresAuditDB', 3);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { App.db = request.result; resolve(); };
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'key' });
+        };
+    });
+}
+
+async function savePhoto(id, blob) {
+    return new Promise((resolve, reject) => {
+        const tx = App.db.transaction('photos', 'readwrite');
+        tx.objectStore('photos').put({ id, blob, timestamp: Date.now() });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getPhoto(id) {
+    return new Promise((resolve, reject) => {
+        const tx = App.db.transaction('photos', 'readonly');
+        const req = tx.objectStore('photos').get(id);
+        req.onsuccess = () => resolve(req.result?.blob || null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveState() {
+    return new Promise((resolve, reject) => {
+        const tx = App.db.transaction('state', 'readwrite');
+        tx.objectStore('state').put({ key: 'appState', config: App.config, state: App.state, data: App.data });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function loadState() {
+    return new Promise((resolve, reject) => {
+        const tx = App.db.transaction('state', 'readonly');
+        const req = tx.objectStore('state').get('appState');
+        req.onsuccess = () => {
+            if (req.result) {
+                App.config = req.result.config || App.config;
+                App.state = req.result.state || App.state;
+                App.data = req.result.data || App.data;
+            }
+            resolve(req.result);
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function clearAllData() {
+    return new Promise((resolve, reject) => {
+        const tx = App.db.transaction(['photos', 'state'], 'readwrite');
+        tx.objectStore('photos').clear();
+        tx.objectStore('state').clear();
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// ============================================
+// NAVIGATION
+// ============================================
+App.showScreen = function(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.screen === id));
+    if (id === 'screenCapture') App.updateCaptureUI();
+    if (id === 'screenReview') App.updateReviewUI();
+};
+
+// ============================================
+// WELCOME & SETUP
+// ============================================
+App.checkForExistingSession = async function() {
+    await loadState();
+    if (Object.keys(App.data.units).length > 0) {
+        const slots = App.countTotalSlots();
+        document.getElementById('resumeInfo').textContent = `${Object.keys(App.data.units).length} ${App.config.unitName.toLowerCase()}s, ${slots} slots`;
+        document.getElementById('resumeCard').style.display = 'block';
+    }
+};
+
+App.resumeSession = function() {
+    App.showScreen('screenCapture');
+};
+
+App.showSetup = function() {
+    App.showScreen('screenSetup');
+};
+
+App.startCapture = function() {
+    App.config.unitName = document.getElementById('unitName').value || 'Tray';
+    App.config.slotName = document.getElementById('slotName').value || 'Slot';
+    App.config.totalUnits = parseInt(document.getElementById('totalUnits').value) || 40;
+    App.config.slotsPerUnit = parseInt(document.getElementById('slotsPerUnit').value) || 20;
+    
+    App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
+    App.data = { units: {} };
+    
+    saveState();
+    App.showScreen('screenCapture');
+    App.promptForUnit();
+};
+
+// ============================================
+// CAPTURE WORKFLOW
+// ============================================
+App.promptForUnit = function() {
+    App.showModal(
+        `Enter ${App.config.unitName} Number`,
+        `<div class="form-group">
+            <label class="form-label">Which ${App.config.unitName.toLowerCase()}?</label>
+            <input type="text" class="form-input" id="modalInput" placeholder="e.g., 1 or A" autofocus>
+        </div>`,
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+            { text: 'Start', class: 'btn-primary', action: 'App.submitUnit()' }
+        ]
+    );
+    setTimeout(() => {
+        const input = document.getElementById('modalInput');
+        if (input) {
+            input.focus();
+            input.onkeypress = (e) => { if (e.key === 'Enter') App.submitUnit(); };
+        }
+    }, 100);
+};
+
+App.submitUnit = function() {
+    const val = document.getElementById('modalInput').value.trim();
+    if (!val) return;
+    App.closeModal();
+    App.startUnit(val);
+};
+
+App.startUnit = function(unitNum) {
+    App.state.currentUnit = unitNum;
+    App.state.currentSlot = null;
+    App.state.phase = 'unit';
+    App.state.itemPhotos = [];
+    if (!App.data.units[unitNum]) App.data.units[unitNum] = { photo: null, slots: {} };
+    saveState();
+    App.updateCaptureUI();
+    App.updateHeaderStatus();
+};
+
+App.promptForSlot = function() {
+    App.showModal(
+        `Enter ${App.config.slotName} Number`,
+        `<div class="form-group">
+            <label class="form-label">${App.config.slotName} in ${App.config.unitName} ${App.state.currentUnit}</label>
+            <input type="text" class="form-input" id="modalInput" placeholder="e.g., 1 or A" autofocus>
+        </div>`,
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+            { text: 'Start', class: 'btn-primary', action: 'App.submitSlot()' }
+        ]
+    );
+    setTimeout(() => {
+        const input = document.getElementById('modalInput');
+        if (input) {
+            input.focus();
+            input.onkeypress = (e) => { if (e.key === 'Enter') App.submitSlot(); };
+        }
+    }, 100);
+};
+
+App.submitSlot = function() {
+    const val = document.getElementById('modalInput').value.trim();
+    if (!val) return;
+    App.closeModal();
+    App.startSlot(val);
+};
+
+App.startSlot = function(slotNum) {
+    App.state.currentSlot = slotNum;
+    App.state.phase = 'slot';
+    App.state.itemPhotos = [];
+    const unit = App.data.units[App.state.currentUnit];
+    if (!unit.slots[slotNum]) unit.slots[slotNum] = { photo: null, items: [], empty: false, reason: '' };
+    saveState();
+    App.updateCaptureUI();
+    App.updateHeaderStatus();
+};
+
+App.triggerCamera = function() {
+    // Only allow camera in valid states
+    if (App.state.phase === 'idle') {
+        App.promptForUnit();
+        return;
+    }
+    if (App.state.phase === 'slot' && !App.state.currentSlot) {
+        App.promptForSlot();
+        return;
+    }
+    document.getElementById('cameraInput').click();
+};
+
+// Camera handler
+document.getElementById('cameraInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const phase = App.state.phase;
+    const unit = App.state.currentUnit;
+    const slot = App.state.currentSlot;
+    
+    try {
+        if (phase === 'unit') {
+            const photoId = `unit_${unit}_label`;
+            await savePhoto(photoId, file);
+            App.data.units[unit].photo = photoId;
+            App.state.phase = 'slot';
+            App.showToast(`${App.config.unitName} ${unit} label saved`, 'success');
+            App.promptForSlot();
+            
+        } else if (phase === 'slot' && slot) {
+            const photoId = `unit_${unit}_slot_${slot}_label`;
+            await savePhoto(photoId, file);
+            App.data.units[unit].slots[slot].photo = photoId;
+            App.state.phase = 'item';
+            App.showToast('Now photograph the items', 'success');
+            
+        } else if (phase === 'item') {
+            const idx = App.state.itemPhotos.length + 1;
+            const photoId = `unit_${unit}_slot_${slot}_item_${idx}`;
+            await savePhoto(photoId, file);
+            App.data.units[unit].slots[slot].items.push(photoId);
+            App.state.itemPhotos.push(photoId);
+            App.showToast(`Item photo ${idx} saved`, 'success');
+        }
+        
+        await saveState();
+        App.updateCaptureUI();
+        App.updateHeaderStatus();
+        
+    } catch (err) {
+        console.error(err);
+        App.showToast('Error saving photo', 'error');
+    }
+    
+    e.target.value = '';
+});
+
+App.markSlotEmpty = function() {
+    // Must have a slot selected
+    if (!App.state.currentSlot) {
+        App.showToast('Select a slot first', 'error');
+        return;
+    }
+    
+    App.showModal(
+        'Mark Slot Empty',
+        `<div class="form-group">
+            <label class="form-label">Reason (optional)</label>
+            <input type="text" class="form-input" id="modalInput" placeholder="On order, Discontinued...">
+        </div>`,
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+            { text: 'Mark Empty', class: 'btn-warning', action: 'App.confirmEmpty()' }
+        ]
+    );
+};
+
+App.confirmEmpty = function() {
+    const reason = document.getElementById('modalInput').value || 'Empty';
+    const unit = App.state.currentUnit;
+    const slot = App.state.currentSlot;
+    
+    App.data.units[unit].slots[slot].empty = true;
+    App.data.units[unit].slots[slot].reason = reason;
+    
+    saveState();
+    App.closeModal();
+    App.showToast(`${App.config.slotName} ${slot} marked empty`, 'success');
+    App.nextSlot();
+};
+
+App.finishSlot = function() {
+    if (App.state.itemPhotos.length === 0) {
+        App.showToast('Take at least one photo first', 'error');
+        return;
+    }
+    App.nextSlot();
+};
+
+App.nextSlot = function() {
+    App.state.phase = 'slot';
+    App.state.currentSlot = null;
+    App.state.itemPhotos = [];
+    saveState();
+    App.updateCaptureUI();
+    App.promptForSlot();
+};
+
+App.newUnit = function() {
+    App.state.phase = 'idle';
+    App.state.currentUnit = null;
+    App.state.currentSlot = null;
+    App.state.itemPhotos = [];
+    saveState();
+    App.updateCaptureUI();
+    App.promptForUnit();
+};
+
+App.deleteLastPhoto = function() {
+    if (App.state.itemPhotos.length > 0) {
+        App.state.itemPhotos.pop();
+        App.data.units[App.state.currentUnit].slots[App.state.currentSlot].items.pop();
+        saveState();
+        App.updateCaptureUI();
+        App.showToast('Photo deleted', 'success');
+    }
+};
+
+// ============================================
+// UI UPDATES
+// ============================================
+App.updateCaptureUI = function() {
+    const { phase, currentUnit, currentSlot, itemPhotos } = App.state;
+    const { unitName, slotName } = App.config;
+    
+    document.getElementById('unitLabel').textContent = unitName;
+    
+    // Location display
+    let locText = '--', stepText = 'Tap button to start';
+    if (phase === 'unit') {
+        locText = currentUnit;
+        stepText = `📷 Photo ${unitName.toLowerCase()} label`;
+    } else if (phase === 'slot') {
+        locText = currentSlot ? `${currentUnit} - ${currentSlot}` : `${currentUnit} - ?`;
+        stepText = currentSlot ? `📷 Photo ${slotName.toLowerCase()} label` : `Enter ${slotName.toLowerCase()} number`;
+    } else if (phase === 'item') {
+        locText = `${currentUnit} - ${currentSlot}`;
+        stepText = `📷 Photo items (${itemPhotos.length} taken)`;
+    }
+    document.getElementById('currentLocation').textContent = locText;
+    document.getElementById('captureStep').textContent = stepText;
+    
+    // Camera area
+    const inst = document.getElementById('cameraInstruction');
+    const hint = document.getElementById('cameraHint');
+    const btn = document.getElementById('captureBtn');
+    
+    if (phase === 'idle') {
+        inst.textContent = 'Ready';
+        hint.textContent = 'Start a unit to begin';
+        btn.disabled = false;
+    } else if (phase === 'unit') {
+        inst.textContent = `Photo ${unitName} Label`;
+        hint.textContent = `Capture label for ${unitName} ${currentUnit}`;
+        btn.disabled = false;
+    } else if (phase === 'slot') {
+        inst.textContent = `Photo ${slotName} Label`;
+        hint.textContent = currentSlot ? `Capture label for ${slotName} ${currentSlot}` : 'Enter slot number first';
+        btn.disabled = !currentSlot;
+    } else if (phase === 'item') {
+        inst.textContent = 'Photo Items';
+        hint.textContent = `Capture items in ${slotName} ${currentSlot}`;
+        btn.disabled = false;
+    }
+    
+    // Photo preview
+    App.updatePhotoPreview();
+    
+    // Action buttons
+    App.updateActionButtons();
+    
+    // Progress
+    App.updateProgress();
+};
+
+App.updatePhotoPreview = async function() {
+    const container = document.getElementById('photoPreview');
+    container.innerHTML = '';
+    
+    for (let i = 0; i < App.state.itemPhotos.length; i++) {
+        const blob = await getPhoto(App.state.itemPhotos[i]);
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            const div = document.createElement('div');
+            div.className = 'photo-thumb';
+            div.innerHTML = `<img src="${url}"><span class="photo-count-badge">${i + 1}</span>`;
+            container.appendChild(div);
+        }
+    }
+};
+
+App.updateActionButtons = function() {
+    const { phase, currentSlot, itemPhotos } = App.state;
+    const { unitName, slotName } = App.config;
+    const grid = document.getElementById('actionGrid');
+    
+    let html = '';
+    
+    if (phase === 'idle') {
+        html = `<button class="btn btn-primary btn-block" onclick="App.promptForUnit()">📦 Start ${unitName}</button>`;
+    } else if (phase === 'unit') {
+        html = `<button class="btn btn-secondary btn-block" onclick="App.newUnit()">↩️ Change ${unitName}</button>`;
+    } else if (phase === 'slot') {
+        html = `
+            <button class="btn btn-warning" onclick="App.markSlotEmpty()" ${!currentSlot ? 'disabled' : ''}>⬜ Empty</button>
+            <button class="btn btn-secondary" onclick="App.newUnit()">📦 New ${unitName}</button>
+        `;
+    } else if (phase === 'item') {
+        html = `
+            <button class="btn btn-warning" onclick="App.markSlotEmpty()">⬜ Empty</button>
+            <button class="btn btn-danger" onclick="App.deleteLastPhoto()" ${itemPhotos.length === 0 ? 'disabled' : ''}>🗑️ Delete</button>
+            <button class="btn btn-success btn-block" onclick="App.finishSlot()">✓ Done → Next ${slotName}</button>
+            <button class="btn btn-secondary" onclick="App.newUnit()">📦 New ${unitName}</button>
+        `;
+    }
+    
+    grid.innerHTML = html;
+};
+
+App.updateProgress = function() {
+    const total = App.config.totalUnits * App.config.slotsPerUnit;
+    const done = App.countTotalSlots();
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.getElementById('progressCount').textContent = `${done} / ${total}`;
+    document.getElementById('progressFill').style.width = `${pct}%`;
+};
+
+App.updateHeaderStatus = function() {
+    const { phase, currentUnit, currentSlot } = App.state;
+    let status = 'Ready';
+    if (phase === 'unit') status = `${App.config.unitName} ${currentUnit}`;
+    else if (phase === 'slot') status = currentSlot ? `${currentUnit}-${currentSlot}` : `${currentUnit}-?`;
+    else if (phase === 'item') status = `${currentUnit}-${currentSlot} 📷`;
+    document.getElementById('headerStatus').textContent = status;
+};
+
+App.countTotalSlots = function() {
+    let count = 0;
+    for (const u in App.data.units) count += Object.keys(App.data.units[u].slots).length;
+    return count;
+};
+
+App.countTotalPhotos = function() {
+    let count = 0;
+    for (const u in App.data.units) {
+        if (App.data.units[u].photo) count++;
+        for (const s in App.data.units[u].slots) {
+            const slot = App.data.units[u].slots[s];
+            if (slot.photo) count++;
+            count += slot.items.length;
+        }
+    }
+    return count;
+};
+
+// ============================================
+// REVIEW
+// ============================================
+App.updateReviewUI = function() {
+    const units = App.data.units;
+    const unitCount = Object.keys(units).length;
+    const slotCount = App.countTotalSlots();
+    const photoCount = App.countTotalPhotos();
+    
+    document.getElementById('statTrays').textContent = unitCount;
+    document.getElementById('statSlots').textContent = slotCount;
+    document.getElementById('statPhotos').textContent = photoCount;
+    
+    const container = document.getElementById('trayList');
+    const emptyState = document.getElementById('emptyState');
+    const exportBtn = document.getElementById('exportBtn');
+    
+    if (unitCount === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        exportBtn.disabled = true;
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    exportBtn.disabled = false;
+    
+    const sorted = Object.keys(units).sort((a, b) => {
+        const numA = parseInt(a), numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+    });
+    
+    let html = '';
+    for (const unitKey of sorted) {
+        const unit = units[unitKey];
+        const slotKeys = Object.keys(unit.slots).sort((a, b) => {
+            const numA = parseInt(a), numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+        });
+        const emptyCount = slotKeys.filter(k => unit.slots[k].empty).length;
+        
+        html += `
+            <div class="tray-accordion">
+                <button class="tray-header" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="tray-header-info">
+                        <span class="tray-header-icon">📦</span>
+                        <div>
+                            <div class="tray-header-title">${App.config.unitName} ${unitKey}</div>
+                            <div class="tray-header-count">${slotKeys.length} slots${emptyCount ? `, ${emptyCount} empty` : ''}</div>
+                        </div>
+                    </div>
+                    <span class="tray-header-arrow">▼</span>
+                </button>
+                <div class="tray-content">
+                    <div class="slot-list">
+                        ${slotKeys.map(sk => {
+                            const slot = unit.slots[sk];
+                            const icon = slot.empty ? '⬜' : '✅';
+                            const status = slot.empty ? 'empty' : 'done';
+                            const meta = slot.empty ? (slot.reason || 'Empty') : `${slot.items.length} photo${slot.items.length !== 1 ? 's' : ''}`;
+                            return `<div class="slot-item">
+                                <div class="slot-status ${status}">${icon}</div>
+                                <div class="slot-info">
+                                    <div class="slot-name">${App.config.slotName} ${sk}</div>
+                                    <div class="slot-meta">${meta}</div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+};
+
+// ============================================
+// EXPORT
+// ============================================
+App.exportData = async function() {
+    App.showToast('Preparing export...', 'success');
+    
+    try {
+        const zip = new JSZip();
+        const manifest = [];
+        
+        for (const unitKey in App.data.units) {
+            const unit = App.data.units[unitKey];
+            const unitFolder = zip.folder(`${App.config.unitName}_${unitKey}`);
+            
+            if (unit.photo) {
+                const blob = await getPhoto(unit.photo);
+                if (blob) unitFolder.file('_label.jpg', blob);
+            }
+            
+            for (const slotKey in unit.slots) {
+                const slot = unit.slots[slotKey];
+                const slotFolder = unitFolder.folder(`${App.config.slotName}_${slotKey}`);
+                
+                manifest.push({
+                    location: `${unitKey}-${slotKey}`,
+                    unit: unitKey,
+                    slot: slotKey,
+                    empty: slot.empty,
+                    reason: slot.reason || '',
+                    items: slot.items.length
+                });
+                
+                if (slot.empty) {
+                    slotFolder.file('_EMPTY.txt', slot.reason || 'Empty');
+                    continue;
+                }
+                
+                if (slot.photo) {
+                    const blob = await getPhoto(slot.photo);
+                    if (blob) slotFolder.file('_label.jpg', blob);
+                }
+                
+                for (let i = 0; i < slot.items.length; i++) {
+                    const blob = await getPhoto(slot.items[i]);
+                    if (blob) slotFolder.file(`item_${String(i + 1).padStart(2, '0')}.jpg`, blob);
+                }
+            }
+        }
+        
+        // Manifest CSV
+        const csv = ['Location,Unit,Slot,Empty,Reason,Items'];
+        manifest.forEach(m => csv.push(`${m.location},${m.unit},${m.slot},${m.empty ? 'Yes' : 'No'},${m.reason},${m.items}`));
+        zip.file('manifest.csv', csv.join('\n'));
+        
+        // Summary
+        const summary = `STORES AUDIT EXPORT
+Date: ${new Date().toLocaleString()}
+Units: ${Object.keys(App.data.units).length}
+Slots: ${manifest.length}
+Empty: ${manifest.filter(m => m.empty).length}
+Photos: ${App.countTotalPhotos()}`;
+        zip.file('summary.txt', summary);
+        
+        // Generate ZIP
+        const content = await zip.generateAsync({ type: 'blob' });
+        const filename = `audit_${new Date().toISOString().slice(0, 10)}.zip`;
+        
+        // Try native share first (works on iOS), fallback to download
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([content], filename)] })) {
+            await navigator.share({
+                files: [new File([content], filename, { type: 'application/zip' })],
+                title: 'Stores Audit Export'
+            });
+            App.showToast('Shared successfully!', 'success');
+        } else {
+            // Fallback download
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            App.showToast('Download started!', 'success');
+        }
+        
+    } catch (err) {
+        console.error('Export error:', err);
+        App.showToast('Export failed: ' + err.message, 'error');
+    }
+};
+
+App.confirmClearData = function() {
+    App.showModal(
+        'Clear All Data?',
+        '<p style="color: var(--text-secondary);">This will delete all photos and progress. This cannot be undone.</p>',
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+            { text: 'Clear All', class: 'btn-danger', action: 'App.clearData()' }
+        ]
+    );
+};
+
+App.clearData = async function() {
+    await clearAllData();
+    App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
+    App.data = { units: {} };
+    App.closeModal();
+    App.showToast('All data cleared', 'success');
+    App.showScreen('screenWelcome');
+    document.getElementById('resumeCard').style.display = 'none';
+};
+
+// ============================================
+// MODAL & TOAST
+// ============================================
+App.showModal = function(title, body, buttons) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = body;
+    document.getElementById('modalFooter').innerHTML = buttons.map(b => 
+        `<button class="btn ${b.class}" onclick="${b.action}">${b.text}</button>`
+    ).join('');
+    document.getElementById('modalOverlay').classList.add('active');
+};
+
+App.closeModal = function(e) {
+    if (!e || e.target.id === 'modalOverlay') {
+        document.getElementById('modalOverlay').classList.remove('active');
+    }
+};
+
+App.showToast = function(msg, type = '') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast' + (type ? ' ' + type : '');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+};
+
+// ============================================
+// INIT
+// ============================================
+async function init() {
+    try {
+        await initDB();
+        await App.checkForExistingSession();
+        App.updateHeaderStatus();
+    } catch (err) {
+        console.error('Init error:', err);
+        App.showToast('Error starting app', 'error');
+    }
+}
+
+init();
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(e => console.log('SW:', e));
+}
+</script>
+</body>
+</html>
