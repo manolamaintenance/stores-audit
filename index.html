@@ -440,6 +440,10 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
         }
+        .numpad-grid.alpha-mode {
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
         .numpad-btn {
             background: var(--bg-tertiary);
             border: none;
@@ -450,6 +454,10 @@
             color: var(--text-primary);
             cursor: pointer;
             transition: background 0.1s;
+        }
+        .numpad-grid.alpha-mode .numpad-btn {
+            padding: 12px 8px;
+            font-size: 16px;
         }
         .numpad-btn:active { background: var(--accent); color: var(--bg-primary); }
         .numpad-dash { color: var(--warning); }
@@ -482,13 +490,147 @@
         .nav-item-icon { font-size: 22px; margin-bottom: 4px; }
 
         .mt-20 { margin-top: 20px; }
+
+        /* Undo Button */
+        .undo-btn {
+            position: fixed;
+            bottom: calc(80px + var(--safe-bottom));
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--warning);
+            color: var(--bg-primary);
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .undo-btn.visible { display: flex; }
+        .undo-btn:active { transform: scale(0.95); }
+
+        /* Photo Quality Warning */
+        .photo-warning {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--danger);
+            color: white;
+            font-size: 12px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Draggable Photos */
+        .photo-thumb.dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+        }
+        .photo-thumb.drag-over {
+            border: 2px solid var(--accent);
+        }
+        .photo-thumb .drag-handle {
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .photo-thumb:hover .drag-handle,
+        .photo-thumb:active .drag-handle {
+            opacity: 1;
+        }
+
+        /* Continue Button in Review */
+        .continue-btn {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .continue-btn:active { transform: scale(0.95); }
+
+        /* Save Indicator */
+        .save-indicator {
+            color: var(--success);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .save-indicator.visible {
+            opacity: 1;
+        }
+        .save-indicator.saving {
+            color: var(--warning);
+            animation: pulse 0.5s ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Session Info */
+        .session-info {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+        }
+
+        /* Numpad Alpha Toggle */
+        .numpad-mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .numpad-mode-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .numpad-mode-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(34, 211, 238, 0.1);
+        }
     </style>
 </head>
 <body>
     <div class="app">
         <header class="header">
             <h1 class="header-title">📦 Stores Audit</h1>
-            <span class="header-status" id="headerStatus">Ready</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="save-indicator" id="saveIndicator" title="Auto-saved">✓</span>
+                <span class="header-status" id="headerStatus">Ready</span>
+            </div>
         </header>
 
         <main class="main">
@@ -595,6 +737,7 @@
             <!-- REVIEW -->
             <div class="screen" id="screenReview">
                 <h2 style="margin-bottom: 20px;">Review & Export</h2>
+                <div class="session-info" id="sessionInfo" style="display: none;"></div>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="statTrays">0</div>
@@ -609,15 +752,23 @@
                         <div class="stat-label">Photos</div>
                     </div>
                 </div>
+                <div class="search-bar" style="margin-bottom: 16px;">
+                    <input type="text" class="form-input" id="reviewSearch" placeholder="🔍 Search slots, notes..." oninput="App.filterReview(this.value)">
+                </div>
                 <div id="trayList"></div>
                 <div class="empty-state" id="emptyState" style="display: none;">
                     <div class="empty-state-icon">📭</div>
                     <div class="empty-state-title">No Data Yet</div>
                     <div class="empty-state-desc">Start capturing to see progress</div>
                 </div>
+                <div class="empty-state" id="noSearchResults" style="display: none;">
+                    <div class="empty-state-icon">🔍</div>
+                    <div class="empty-state-title">No Results</div>
+                    <div class="empty-state-desc">Try a different search term</div>
+                </div>
                 <button class="btn btn-success btn-lg btn-block mt-20" id="exportBtn" onclick="App.exportData()">📥 Export All Data</button>
                 <div style="display: flex; gap: 12px; margin-top: 12px;">
-                    <button class="btn btn-secondary" style="flex: 1;" onclick="App.exportSingleTray()">📤 Export Single Tray</button>
+                    <button class="btn btn-secondary" style="flex: 1;" id="exportSingleBtn" onclick="App.exportSingleTray()">📤 Export Single</button>
                     <button class="btn btn-secondary" style="flex: 1;" onclick="App.toggleCompression()">
                         <span id="compressionLabel">🗜️ Compress: OFF</span>
                     </button>
@@ -640,6 +791,9 @@
         </nav>
 
         <div class="toast" id="toast"></div>
+
+        <!-- Undo Button -->
+        <button class="undo-btn" id="undoBtn" onclick="App.undo()" title="Undo last action">↩️</button>
 
         <!-- Lightbox -->
         <div class="lightbox" id="lightbox">
@@ -681,6 +835,7 @@ const App = {
     data: {
         units: {}
     },
+    undoStack: [], // For undo functionality
     db: null
 };
 
@@ -719,10 +874,32 @@ async function getPhoto(id) {
 }
 
 async function saveState() {
+    // Show saving indicator
+    const indicator = document.getElementById('saveIndicator');
+    if (indicator) {
+        indicator.textContent = '⟳';
+        indicator.classList.add('visible', 'saving');
+    }
+    
     return new Promise((resolve, reject) => {
         const tx = App.db.transaction('state', 'readwrite');
-        tx.objectStore('state').put({ key: 'appState', config: App.config, state: App.state, data: App.data });
-        tx.oncomplete = resolve;
+        tx.objectStore('state').put({ 
+            key: 'appState', 
+            config: App.config, 
+            state: App.state, 
+            data: App.data,
+            sessionStart: App.sessionStart || Date.now(),
+            lastSaved: Date.now()
+        });
+        tx.oncomplete = () => {
+            // Show saved indicator
+            if (indicator) {
+                indicator.textContent = '✓';
+                indicator.classList.remove('saving');
+                setTimeout(() => indicator.classList.remove('visible'), 2000);
+            }
+            resolve();
+        };
         tx.onerror = () => reject(tx.error);
     });
 }
@@ -736,6 +913,8 @@ async function loadState() {
                 App.config = req.result.config || App.config;
                 App.state = req.result.state || App.state;
                 App.data = req.result.data || App.data;
+                App.sessionStart = req.result.sessionStart || null;
+                App.lastSaved = req.result.lastSaved || null;
             }
             resolve(req.result);
         };
@@ -752,6 +931,86 @@ async function clearAllData() {
         tx.onerror = () => reject(tx.error);
     });
 }
+
+// ============================================
+// UNDO SYSTEM
+// ============================================
+App.pushUndo = function(action, data) {
+    App.undoStack.push({ action, data, timestamp: Date.now() });
+    // Keep only last 10 actions
+    if (App.undoStack.length > 10) App.undoStack.shift();
+    App.updateUndoButton();
+};
+
+App.updateUndoButton = function() {
+    const btn = document.getElementById('undoBtn');
+    btn.classList.toggle('visible', App.undoStack.length > 0);
+};
+
+App.undo = async function() {
+    if (App.undoStack.length === 0) return;
+    
+    const last = App.undoStack.pop();
+    App.updateUndoButton();
+    
+    try {
+        switch (last.action) {
+            case 'photo_added':
+                // Remove the photo that was added
+                const { unit, slot, photoId, photoType } = last.data;
+                if (photoType === 'item') {
+                    const items = App.data.units[unit].slots[slot].items;
+                    const idx = items.indexOf(photoId);
+                    if (idx > -1) items.splice(idx, 1);
+                    const stateIdx = App.state.itemPhotos.indexOf(photoId);
+                    if (stateIdx > -1) App.state.itemPhotos.splice(stateIdx, 1);
+                } else if (photoType === 'slot_label') {
+                    App.data.units[unit].slots[slot].photo = null;
+                    App.state.phase = 'slot';
+                } else if (photoType === 'unit_label') {
+                    App.data.units[unit].photo = null;
+                    App.state.phase = 'unit';
+                }
+                App.showToast('Photo removed', 'success');
+                break;
+                
+            case 'slot_empty':
+                // Unmark slot as empty
+                App.data.units[last.data.unit].slots[last.data.slot].empty = false;
+                App.data.units[last.data.unit].slots[last.data.slot].reason = '';
+                App.state.currentUnit = last.data.unit;
+                App.state.currentSlot = last.data.slot;
+                App.state.phase = 'item';
+                App.showToast('Slot unmarked as empty', 'success');
+                break;
+                
+            case 'slot_finished':
+                // Return to that slot
+                App.state.currentUnit = last.data.unit;
+                App.state.currentSlot = last.data.slot;
+                App.state.itemPhotos = [...App.data.units[last.data.unit].slots[last.data.slot].items];
+                App.state.phase = 'item';
+                App.showToast('Returned to slot', 'success');
+                break;
+                
+            case 'photo_deleted':
+                // Restore the deleted photo
+                await savePhoto(last.data.photoId, last.data.blob);
+                App.data.units[last.data.unit].slots[last.data.slot].items.push(last.data.photoId);
+                App.state.itemPhotos.push(last.data.photoId);
+                App.showToast('Photo restored', 'success');
+                break;
+        }
+        
+        await saveState();
+        App.updateCaptureUI();
+        App.updateHeaderStatus();
+        
+    } catch (err) {
+        console.error('Undo error:', err);
+        App.showToast('Undo failed', 'error');
+    }
+};
 
 // ============================================
 // NAVIGATION
@@ -800,12 +1059,18 @@ App.showSetup = function() {
 App.exportThenSetup = function() {
     App.closeModal();
     App.exportData().then(() => {
+        // Reset state so header shows "Ready"
+        App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
+        App.updateHeaderStatus();
         App.showScreen('screenSetup');
     });
 };
 
 App.confirmNewSession = function() {
     App.closeModal();
+    // Reset state so header shows "Ready"
+    App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
+    App.updateHeaderStatus();
     App.showScreen('screenSetup');
 };
 
@@ -819,6 +1084,7 @@ App.startCapture = function() {
     
     App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
     App.data = { units: {} };
+    App.sessionStart = Date.now(); // Track when session started
     
     saveState();
     App.showScreen('screenCapture');
@@ -857,8 +1123,39 @@ App.promptForSlot = function() {
 App.submitSlot = function() {
     const val = document.getElementById('numpadDisplay').textContent.trim();
     if (!val || val === '0') return;
+    
+    // Check for duplicate slot
+    const unit = App.data.units[App.state.currentUnit];
+    if (unit && unit.slots[val] && (unit.slots[val].items.length > 0 || unit.slots[val].empty)) {
+        App.showDuplicateSlotWarning(val);
+        return;
+    }
+    
     App.closeModal();
     App.startSlot(val);
+};
+
+App.showDuplicateSlotWarning = function(slotNum) {
+    const slot = App.data.units[App.state.currentUnit].slots[slotNum];
+    const info = slot.empty ? 'marked as empty' : `has ${slot.items.length} photo${slot.items.length !== 1 ? 's' : ''}`;
+    
+    App.showModal(
+        '⚠️ Slot Already Captured',
+        `<p style="color: var(--text-secondary); margin-bottom: 16px;">${App.config.slotName} <strong>${slotNum}</strong> already ${info}.</p>
+        <p style="color: var(--text-secondary);">What would you like to do?</p>`,
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal(); App.promptForSlot()' },
+            { text: 'Edit Existing', class: 'btn-primary', action: `App.closeModal(); App.editSlot('${App.state.currentUnit}', '${slotNum}')` },
+            { text: 'Overwrite', class: 'btn-danger', action: `App.closeModal(); App.overwriteSlot('${slotNum}')` }
+        ]
+    );
+};
+
+App.overwriteSlot = function(slotNum) {
+    // Clear existing slot data
+    App.data.units[App.state.currentUnit].slots[slotNum] = { photo: null, items: [], empty: false, reason: '', notes: '' };
+    App.startSlot(slotNum);
+    App.showToast(`${App.config.slotName} ${slotNum} cleared`, 'success');
 };
 
 App.startSlot = function(slotNum) {
@@ -903,10 +1200,21 @@ document.getElementById('cameraInput').addEventListener('change', async function
     const slot = App.state.currentSlot;
     
     try {
+        // Check photo quality
+        const qualityIssue = await App.checkPhotoQuality(file);
+        if (qualityIssue) {
+            const proceed = await App.confirmQualityIssue(qualityIssue);
+            if (!proceed) {
+                e.target.value = '';
+                return;
+            }
+        }
+        
         if (phase === 'unit') {
             const photoId = `unit_${unit}_label`;
             await savePhoto(photoId, file);
             App.data.units[unit].photo = photoId;
+            App.pushUndo('photo_added', { unit, photoId, photoType: 'unit_label' });
             App.state.phase = 'slot';
             App.vibrate();
             App.showToast(`${App.config.unitName} ${unit} label saved`, 'success');
@@ -916,6 +1224,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
             const photoId = `unit_${unit}_slot_${slot}_label`;
             await savePhoto(photoId, file);
             App.data.units[unit].slots[slot].photo = photoId;
+            App.pushUndo('photo_added', { unit, slot, photoId, photoType: 'slot_label' });
             App.state.phase = 'item';
             App.vibrate();
             App.showToast('Now photograph the items', 'success');
@@ -926,6 +1235,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
             await savePhoto(photoId, file);
             App.data.units[unit].slots[slot].items.push(photoId);
             App.state.itemPhotos.push(photoId);
+            App.pushUndo('photo_added', { unit, slot, photoId, photoType: 'item' });
             App.vibrate();
             App.showToast(`Item photo ${idx} saved`, 'success');
         }
@@ -941,6 +1251,80 @@ document.getElementById('cameraInput').addEventListener('change', async function
     
     e.target.value = '';
 });
+
+// ============================================
+// PHOTO QUALITY CHECK
+// ============================================
+App.checkPhotoQuality = function(file) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const size = 100; // Sample size for quick analysis
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            
+            const imageData = ctx.getImageData(0, 0, size, size);
+            const data = imageData.data;
+            
+            // Check brightness
+            let totalBrightness = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+            }
+            const avgBrightness = totalBrightness / (size * size);
+            
+            // Check for blur using Laplacian variance
+            const gray = [];
+            for (let i = 0; i < data.length; i += 4) {
+                gray.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+            }
+            
+            let laplacianVar = 0;
+            for (let y = 1; y < size - 1; y++) {
+                for (let x = 1; x < size - 1; x++) {
+                    const idx = y * size + x;
+                    const laplacian = 
+                        gray[idx - size] + gray[idx + size] + 
+                        gray[idx - 1] + gray[idx + 1] - 4 * gray[idx];
+                    laplacianVar += laplacian * laplacian;
+                }
+            }
+            laplacianVar /= ((size - 2) * (size - 2));
+            
+            URL.revokeObjectURL(img.src);
+            
+            if (avgBrightness < 40) {
+                resolve('too dark');
+            } else if (avgBrightness > 240) {
+                resolve('too bright');
+            } else if (laplacianVar < 100) {
+                resolve('possibly blurry');
+            } else {
+                resolve(null);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = URL.createObjectURL(file);
+    });
+};
+
+App.confirmQualityIssue = function(issue) {
+    return new Promise((resolve) => {
+        App.showModal(
+            '⚠️ Photo Quality Warning',
+            `<p style="color: var(--text-secondary); margin-bottom: 16px;">This photo appears to be <strong style="color: var(--warning);">${issue}</strong>.</p>
+            <p style="color: var(--text-secondary);">Do you want to use it anyway or retake?</p>`,
+            [
+                { text: 'Retake', class: 'btn-primary', action: 'App.closeModal(); App.qualityResolve(false)' },
+                { text: 'Use Anyway', class: 'btn-secondary', action: 'App.closeModal(); App.qualityResolve(true)' }
+            ]
+        );
+        App.qualityResolve = resolve;
+    });
+};
 
 App.markSlotEmpty = function() {
     // Must have a slot selected
@@ -969,6 +1353,7 @@ App.confirmEmpty = function() {
     
     App.data.units[unit].slots[slot].empty = true;
     App.data.units[unit].slots[slot].reason = reason;
+    App.pushUndo('slot_empty', { unit, slot });
     
     saveState();
     App.closeModal();
@@ -1011,6 +1396,10 @@ App.finishSlot = function() {
         App.showToast('Take at least one photo first', 'error');
         return;
     }
+    App.pushUndo('slot_finished', { 
+        unit: App.state.currentUnit, 
+        slot: App.state.currentSlot 
+    });
     App.nextSlot();
 };
 
@@ -1052,24 +1441,18 @@ App.incrementSlot = function(slot) {
 
 App.promptForSlotWithSuggestion = function(suggested) {
     const submitFn = 'App.submitSlot()';
+    const gridClass = App.numpadMode === 'alpha' ? 'numpad-grid alpha-mode' : 'numpad-grid';
     
     document.getElementById('modalTitle').textContent = `${App.config.slotName} in ${App.config.unitName} ${App.state.currentUnit}`;
     document.getElementById('modalBody').innerHTML = `
         ${suggested ? `<button class="btn btn-success btn-block" style="margin-bottom: 16px; font-size: 18px;" onclick="App.quickSlot('${suggested}')">📍 Next: ${suggested}</button>` : ''}
+        <div class="numpad-mode-toggle">
+            <button class="numpad-mode-btn ${App.numpadMode === 'numeric' ? 'active' : ''}" onclick="App.setNumpadMode('numeric')">123</button>
+            <button class="numpad-mode-btn ${App.numpadMode === 'alpha' ? 'active' : ''}" onclick="App.setNumpadMode('alpha')">ABC</button>
+        </div>
         <div class="numpad-display" id="numpadDisplay">0</div>
-        <div class="numpad-grid">
-            <button class="numpad-btn" onclick="App.numpadPress('1')">1</button>
-            <button class="numpad-btn" onclick="App.numpadPress('2')">2</button>
-            <button class="numpad-btn" onclick="App.numpadPress('3')">3</button>
-            <button class="numpad-btn" onclick="App.numpadPress('4')">4</button>
-            <button class="numpad-btn" onclick="App.numpadPress('5')">5</button>
-            <button class="numpad-btn" onclick="App.numpadPress('6')">6</button>
-            <button class="numpad-btn" onclick="App.numpadPress('7')">7</button>
-            <button class="numpad-btn" onclick="App.numpadPress('8')">8</button>
-            <button class="numpad-btn" onclick="App.numpadPress('9')">9</button>
-            <button class="numpad-btn numpad-dash" onclick="App.numpadPress('-')">-</button>
-            <button class="numpad-btn" onclick="App.numpadPress('0')">0</button>
-            <button class="numpad-btn numpad-clear" onclick="App.numpadClear()">⌫</button>
+        <div class="${gridClass}" id="numpadGrid">
+            ${App.renderNumpadKeys()}
         </div>
     `;
     document.getElementById('modalFooter').innerHTML = `
@@ -1094,10 +1477,22 @@ App.newUnit = function() {
     App.promptForUnit();
 };
 
-App.deleteLastPhoto = function() {
+App.deleteLastPhoto = async function() {
     if (App.state.itemPhotos.length > 0) {
-        App.state.itemPhotos.pop();
+        const photoId = App.state.itemPhotos.pop();
         App.data.units[App.state.currentUnit].slots[App.state.currentSlot].items.pop();
+        
+        // Save the blob for potential undo
+        const blob = await getPhoto(photoId);
+        if (blob) {
+            App.pushUndo('photo_deleted', { 
+                unit: App.state.currentUnit, 
+                slot: App.state.currentSlot, 
+                photoId, 
+                blob 
+            });
+        }
+        
         saveState();
         App.updateCaptureUI();
         App.showToast('Photo deleted', 'success');
@@ -1182,14 +1577,113 @@ App.updatePhotoPreview = async function() {
             const url = URL.createObjectURL(blob);
             const div = document.createElement('div');
             div.className = 'photo-thumb';
-            div.innerHTML = `<img src="${url}"><span class="photo-count-badge">${i + 1}</span>`;
-            div.onclick = () => App.openLightbox(url, i + 1, App.state.itemPhotos.length);
+            div.draggable = true;
+            div.dataset.index = i;
+            div.innerHTML = `
+                <img src="${url}">
+                <span class="photo-count-badge">${i + 1}</span>
+                <span class="drag-handle">☰ drag</span>
+            `;
+            
+            // Tap to open lightbox
+            div.onclick = (e) => {
+                if (!div.classList.contains('dragging')) {
+                    App.openLightbox(url, i + 1, App.state.itemPhotos.length);
+                }
+            };
+            
+            // Drag events
+            div.ondragstart = (e) => {
+                div.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', i);
+                App.dragSourceIndex = i;
+            };
+            div.ondragend = () => div.classList.remove('dragging');
+            div.ondragover = (e) => {
+                e.preventDefault();
+                div.classList.add('drag-over');
+            };
+            div.ondragleave = () => div.classList.remove('drag-over');
+            div.ondrop = async (e) => {
+                e.preventDefault();
+                div.classList.remove('drag-over');
+                const fromIndex = App.dragSourceIndex;
+                const toIndex = parseInt(div.dataset.index);
+                if (fromIndex !== toIndex) {
+                    await App.reorderPhotos(fromIndex, toIndex);
+                }
+            };
+            
+            // Touch support for mobile
+            div.ontouchstart = (e) => {
+                App.touchStartTime = Date.now();
+                App.touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            };
+            div.ontouchend = (e) => {
+                const elapsed = Date.now() - App.touchStartTime;
+                if (elapsed < 300) {
+                    // Short tap - open lightbox
+                    App.openLightbox(url, i + 1, App.state.itemPhotos.length);
+                }
+            };
+            
             container.appendChild(div);
         }
     }
+    
+    // Add reorder button if multiple photos
+    if (App.state.itemPhotos.length > 1) {
+        const reorderBtn = document.createElement('button');
+        reorderBtn.className = 'btn btn-secondary';
+        reorderBtn.style.cssText = 'width: 100%; margin-top: 8px; font-size: 13px;';
+        reorderBtn.innerHTML = '↕️ Reorder Photos';
+        reorderBtn.onclick = () => App.showReorderModal();
+        container.appendChild(reorderBtn);
+    }
 };
 
-App.lightboxState = { urls: [], index: 0 };
+App.reorderPhotos = async function(fromIndex, toIndex) {
+    const photos = App.state.itemPhotos;
+    const [moved] = photos.splice(fromIndex, 1);
+    photos.splice(toIndex, 0, moved);
+    
+    // Also update the data store
+    const items = App.data.units[App.state.currentUnit].slots[App.state.currentSlot].items;
+    const [movedItem] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, movedItem);
+    
+    await saveState();
+    App.updatePhotoPreview();
+    App.showToast('Photos reordered', 'success');
+};
+
+App.showReorderModal = function() {
+    let html = '<p style="color: var(--text-secondary); margin-bottom: 16px;">Tap arrows to move photos:</p>';
+    html += '<div style="max-height: 300px; overflow-y: auto;">';
+    
+    for (let i = 0; i < App.state.itemPhotos.length; i++) {
+        html += `
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-primary); border-radius: 8px; margin-bottom: 8px;">
+                <span style="font-weight: 600; width: 24px;">${i + 1}</span>
+                <span style="flex: 1; color: var(--text-secondary);">Photo ${i + 1}</span>
+                <button class="btn btn-secondary" style="padding: 8px;" ${i === 0 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i - 1})">↑</button>
+                <button class="btn btn-secondary" style="padding: 8px;" ${i === App.state.itemPhotos.length - 1 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i + 1})">↓</button>
+            </div>
+        `;
+    }
+    html += '</div>';
+    
+    App.showModal('Reorder Photos', html, [
+        { text: 'Done', class: 'btn-primary', action: 'App.closeModal()' }
+    ]);
+};
+
+App.movePhoto = async function(from, to) {
+    await App.reorderPhotos(from, to);
+    App.showReorderModal(); // Refresh the modal
+};
+
+App.lightboxState = { urls: [], index: 0, touchStartX: 0, touchStartY: 0 };
 
 App.openLightbox = function(url, index, total) {
     App.lightboxState.index = index - 1;
@@ -1197,6 +1691,34 @@ App.openLightbox = function(url, index, total) {
     document.getElementById('lightboxInfo').textContent = `Photo ${index} of ${total}`;
     document.getElementById('lightbox').classList.add('active');
     App.updateLightboxNav();
+};
+
+// Initialize lightbox swipe gestures
+App.initLightboxSwipe = function() {
+    const lightbox = document.getElementById('lightbox');
+    const img = document.getElementById('lightboxImg');
+    
+    img.addEventListener('touchstart', (e) => {
+        App.lightboxState.touchStartX = e.touches[0].clientX;
+        App.lightboxState.touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    img.addEventListener('touchend', (e) => {
+        const deltaX = e.changedTouches[0].clientX - App.lightboxState.touchStartX;
+        const deltaY = e.changedTouches[0].clientY - App.lightboxState.touchStartY;
+        
+        // Only trigger if horizontal swipe is dominant and significant
+        if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX > 0) {
+                App.lightboxPrev();
+            } else {
+                App.lightboxNext();
+            }
+        } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+            // Tap to close
+            App.closeLightbox();
+        }
+    }, { passive: true });
 };
 
 App.updateLightboxNav = function() {
@@ -1306,6 +1828,13 @@ App.countTotalPhotos = function() {
 // ============================================
 // REVIEW
 // ============================================
+App.reviewSearchTerm = '';
+
+App.filterReview = function(term) {
+    App.reviewSearchTerm = term.toLowerCase().trim();
+    App.renderReviewList();
+};
+
 App.updateReviewUI = function() {
     const units = App.data.units;
     const unitCount = Object.keys(units).length;
@@ -1319,17 +1848,41 @@ App.updateReviewUI = function() {
     // Update labels to match config
     document.getElementById('statTraysLabel').textContent = App.config.unitName + 's';
     document.getElementById('statSlotsLabel').textContent = App.config.slotName + 's';
+    document.getElementById('exportSingleBtn').textContent = `📤 Export Single ${App.config.unitName}`;
+    
+    // Update search placeholder
+    document.getElementById('reviewSearch').placeholder = `🔍 Search ${App.config.slotName.toLowerCase()}s, notes...`;
+    
+    // Show session info
+    const sessionInfo = document.getElementById('sessionInfo');
+    if (App.sessionStart && unitCount > 0) {
+        const startDate = new Date(App.sessionStart);
+        const auditorText = App.config.auditorName ? ` • Auditor: ${App.config.auditorName}` : '';
+        sessionInfo.innerHTML = `📅 Started: ${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}${auditorText}`;
+        sessionInfo.style.display = 'block';
+    } else {
+        sessionInfo.style.display = 'none';
+    }
     
     // Calculate and show storage used
     App.calculateStorage();
     
+    App.renderReviewList();
+};
+
+App.renderReviewList = function() {
+    const units = App.data.units;
+    const unitCount = Object.keys(units).length;
     const container = document.getElementById('trayList');
     const emptyState = document.getElementById('emptyState');
+    const noResults = document.getElementById('noSearchResults');
     const exportBtn = document.getElementById('exportBtn');
+    const searchTerm = App.reviewSearchTerm;
     
     if (unitCount === 0) {
         container.innerHTML = '';
         emptyState.style.display = 'block';
+        noResults.style.display = 'none';
         exportBtn.disabled = true;
         return;
     }
@@ -1344,26 +1897,54 @@ App.updateReviewUI = function() {
     });
     
     let html = '';
+    let hasResults = false;
+    
     for (const unitKey of sorted) {
         const unit = units[unitKey];
-        const slotKeys = Object.keys(unit.slots).sort((a, b) => {
+        let slotKeys = Object.keys(unit.slots).sort((a, b) => {
             const numA = parseInt(a), numB = parseInt(b);
             if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
             return a.localeCompare(b);
         });
+        
+        // Apply search filter
+        if (searchTerm) {
+            slotKeys = slotKeys.filter(sk => {
+                const slot = unit.slots[sk];
+                const slotNum = sk.toLowerCase();
+                const unitNum = unitKey.toLowerCase();
+                const notes = (slot.notes || '').toLowerCase();
+                const reason = (slot.reason || '').toLowerCase();
+                const location = `${unitKey}-${sk}`.toLowerCase();
+                
+                return slotNum.includes(searchTerm) || 
+                       unitNum.includes(searchTerm) ||
+                       notes.includes(searchTerm) || 
+                       reason.includes(searchTerm) ||
+                       location.includes(searchTerm);
+            });
+            
+            if (slotKeys.length === 0) continue;
+        }
+        
+        hasResults = true;
         const emptyCount = slotKeys.filter(k => unit.slots[k].empty).length;
+        const isOpen = searchTerm ? 'open' : ''; // Auto-expand when searching
         
         html += `
-            <div class="tray-accordion">
+            <div class="tray-accordion ${isOpen}">
                 <button class="tray-header" onclick="this.parentElement.classList.toggle('open')">
                     <div class="tray-header-info">
                         <span class="tray-header-icon">📦</span>
                         <div>
                             <div class="tray-header-title">${App.config.unitName} ${unitKey}</div>
-                            <div class="tray-header-count">${slotKeys.length} slots${emptyCount ? `, ${emptyCount} empty` : ''}</div>
+                            <div class="tray-header-count">${slotKeys.length} ${App.config.slotName.toLowerCase()}${slotKeys.length !== 1 ? 's' : ''}${emptyCount ? `, ${emptyCount} empty` : ''}</div>
                         </div>
                     </div>
-                    <span class="tray-header-arrow">▼</span>
+                    <div style="display: flex; align-items: center;">
+                        <button class="continue-btn" onclick="event.stopPropagation(); App.continueFromUnit('${unitKey}')">▶ Continue</button>
+                        <span class="tray-header-arrow">▼</span>
+                    </div>
                 </button>
                 <div class="tray-content">
                     <div class="slot-list">
@@ -1372,7 +1953,8 @@ App.updateReviewUI = function() {
                             const icon = slot.empty ? '⬜' : '✅';
                             const status = slot.empty ? 'empty' : 'done';
                             const meta = slot.empty ? (slot.reason || 'Empty') : `${slot.items.length} photo${slot.items.length !== 1 ? 's' : ''}`;
-                            return `<div class="slot-item">
+                            const highlight = searchTerm && (slot.notes || '').toLowerCase().includes(searchTerm) ? 'style="background: rgba(34, 211, 238, 0.1);"' : '';
+                            return `<div class="slot-item" ${highlight}>
                                 <div class="slot-status ${status}">${icon}</div>
                                 <div class="slot-info">
                                     <div class="slot-name">${App.config.slotName} ${sk}</div>
@@ -1386,7 +1968,25 @@ App.updateReviewUI = function() {
             </div>
         `;
     }
+    
     container.innerHTML = html;
+    
+    // Show no results message if searching and nothing found
+    noResults.style.display = (searchTerm && !hasResults) ? 'block' : 'none';
+};
+
+App.continueFromUnit = function(unitKey) {
+    App.state.currentUnit = unitKey;
+    App.state.currentSlot = null;
+    App.state.phase = 'slot';
+    App.state.itemPhotos = [];
+    
+    saveState();
+    App.showScreen('screenCapture');
+    App.updateCaptureUI();
+    App.updateHeaderStatus();
+    App.promptForSlot();
+    App.showToast(`Continuing ${App.config.unitName} ${unitKey}`, 'success');
 };
 
 // ============================================
@@ -1420,19 +2020,19 @@ App.toggleCompression = function() {
 App.exportSingleTray = function() {
     const units = Object.keys(App.data.units);
     if (units.length === 0) {
-        App.showToast('No trays to export', 'error');
+        App.showToast(`No ${App.config.unitName.toLowerCase()}s to export`, 'error');
         return;
     }
     
     let html = '<div style="max-height: 300px; overflow-y: auto;">';
     units.forEach(u => {
         const slotCount = Object.keys(App.data.units[u].slots).length;
-        html += `<button class="btn btn-secondary btn-block" style="margin-bottom: 8px;" onclick="App.exportTray('${u}')">${App.config.unitName} ${u} (${slotCount} slots)</button>`;
+        html += `<button class="btn btn-secondary btn-block" style="margin-bottom: 8px;" onclick="App.exportTray('${u}')">${App.config.unitName} ${u} (${slotCount} ${App.config.slotName.toLowerCase()}${slotCount !== 1 ? 's' : ''})</button>`;
     });
     html += '</div>';
     
     App.showModal(
-        'Export Single Tray',
+        `Export Single ${App.config.unitName}`,
         html,
         [{ text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' }]
     );
@@ -1477,20 +2077,29 @@ App.exportTray = async function(unitKey) {
         const dateStr = now.toISOString().slice(0, 10);
         const filename = `${App.config.unitName}_${unitKey}_${dateStr}.zip`;
         
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([content], filename)] })) {
-            await navigator.share({
-                files: [new File([content], filename, { type: 'application/zip' })],
-                title: `${App.config.unitName} ${unitKey} Export`
-            });
-        } else {
+        let shared = false;
+        try {
+            const file = new File([content], filename, { type: 'application/zip' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: `${App.config.unitName} ${unitKey} Export` });
+                shared = true;
+            }
+        } catch (shareErr) {
+            console.log('Share failed, using download:', shareErr);
+        }
+        
+        if (!shared) {
             const url = URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
+            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 1000);
         }
         
         App.showToast('Export complete!', 'success');
@@ -1634,24 +2243,33 @@ Photos: ${App.countTotalPhotos()}`;
         const auditorStr = App.config.auditorName ? `_${App.config.auditorName.replace(/\s+/g, '_')}` : '';
         const filename = `audit_${dateStr}_${timeStr}${auditorStr}.zip`;
         
-        // Try native share first (works on iOS), fallback to download
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([content], filename)] })) {
-            await navigator.share({
-                files: [new File([content], filename, { type: 'application/zip' })],
-                title: 'Stores Audit Export'
-            });
-            App.showToast('Shared successfully!', 'success');
-        } else {
-            // Fallback download
+        // Try native share first, with robust fallback
+        let shared = false;
+        try {
+            const file = new File([content], filename, { type: 'application/zip' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Stores Audit Export' });
+                shared = true;
+                App.showToast('Shared successfully!', 'success');
+            }
+        } catch (shareErr) {
+            console.log('Share failed, using download:', shareErr);
+        }
+        
+        // Fallback to direct download
+        if (!shared) {
             const url = URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
+            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            App.showToast('Download started!', 'success');
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 1000);
+            App.showToast('Download started! Check your Downloads folder.', 'success');
         }
         
     } catch (err) {
@@ -1693,13 +2311,33 @@ App.showModal = function(title, body, buttons) {
     document.getElementById('modalOverlay').classList.add('active');
 };
 
+App.numpadMode = 'numeric'; // 'numeric' or 'alpha'
+
 App.showNumpadModal = function(title, type) {
     const submitFn = type === 'unit' ? 'App.submitUnit()' : 'App.submitSlot()';
+    const gridClass = App.numpadMode === 'alpha' ? 'numpad-grid alpha-mode' : 'numpad-grid';
     
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = `
+        <div class="numpad-mode-toggle">
+            <button class="numpad-mode-btn ${App.numpadMode === 'numeric' ? 'active' : ''}" onclick="App.setNumpadMode('numeric')">123</button>
+            <button class="numpad-mode-btn ${App.numpadMode === 'alpha' ? 'active' : ''}" onclick="App.setNumpadMode('alpha')">ABC</button>
+        </div>
         <div class="numpad-display" id="numpadDisplay">0</div>
-        <div class="numpad-grid">
+        <div class="${gridClass}" id="numpadGrid">
+            ${App.renderNumpadKeys()}
+        </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+        <button class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="${submitFn}">OK</button>
+    `;
+    document.getElementById('modalOverlay').classList.add('active');
+};
+
+App.renderNumpadKeys = function() {
+    if (App.numpadMode === 'numeric') {
+        return `
             <button class="numpad-btn" onclick="App.numpadPress('1')">1</button>
             <button class="numpad-btn" onclick="App.numpadPress('2')">2</button>
             <button class="numpad-btn" onclick="App.numpadPress('3')">3</button>
@@ -1712,13 +2350,51 @@ App.showNumpadModal = function(title, type) {
             <button class="numpad-btn numpad-dash" onclick="App.numpadPress('-')">-</button>
             <button class="numpad-btn" onclick="App.numpadPress('0')">0</button>
             <button class="numpad-btn numpad-clear" onclick="App.numpadClear()">⌫</button>
-        </div>
-    `;
-    document.getElementById('modalFooter').innerHTML = `
-        <button class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="${submitFn}">OK</button>
-    `;
-    document.getElementById('modalOverlay').classList.add('active');
+        `;
+    } else {
+        return `
+            <button class="numpad-btn" onclick="App.numpadPress('A')">A</button>
+            <button class="numpad-btn" onclick="App.numpadPress('B')">B</button>
+            <button class="numpad-btn" onclick="App.numpadPress('C')">C</button>
+            <button class="numpad-btn" onclick="App.numpadPress('D')">D</button>
+            <button class="numpad-btn" onclick="App.numpadPress('E')">E</button>
+            <button class="numpad-btn" onclick="App.numpadPress('F')">F</button>
+            <button class="numpad-btn" onclick="App.numpadPress('G')">G</button>
+            <button class="numpad-btn" onclick="App.numpadPress('H')">H</button>
+            <button class="numpad-btn" onclick="App.numpadPress('I')">I</button>
+            <button class="numpad-btn" onclick="App.numpadPress('J')">J</button>
+            <button class="numpad-btn" onclick="App.numpadPress('K')">K</button>
+            <button class="numpad-btn" onclick="App.numpadPress('L')">L</button>
+            <button class="numpad-btn" onclick="App.numpadPress('M')">M</button>
+            <button class="numpad-btn" onclick="App.numpadPress('N')">N</button>
+            <button class="numpad-btn" onclick="App.numpadPress('O')">O</button>
+            <button class="numpad-btn" onclick="App.numpadPress('P')">P</button>
+            <button class="numpad-btn" onclick="App.numpadPress('Q')">Q</button>
+            <button class="numpad-btn" onclick="App.numpadPress('R')">R</button>
+            <button class="numpad-btn" onclick="App.numpadPress('S')">S</button>
+            <button class="numpad-btn" onclick="App.numpadPress('T')">T</button>
+            <button class="numpad-btn" onclick="App.numpadPress('U')">U</button>
+            <button class="numpad-btn" onclick="App.numpadPress('V')">V</button>
+            <button class="numpad-btn" onclick="App.numpadPress('W')">W</button>
+            <button class="numpad-btn" onclick="App.numpadPress('X')">X</button>
+            <button class="numpad-btn" onclick="App.numpadPress('Y')">Y</button>
+            <button class="numpad-btn" onclick="App.numpadPress('Z')">Z</button>
+            <button class="numpad-btn numpad-dash" onclick="App.numpadPress('-')">-</button>
+            <button class="numpad-btn numpad-clear" onclick="App.numpadClear()">⌫</button>
+        `;
+    }
+};
+
+App.setNumpadMode = function(mode) {
+    App.numpadMode = mode;
+    // Update toggle buttons
+    document.querySelectorAll('.numpad-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === (mode === 'numeric' ? '123' : 'ABC'));
+    });
+    // Update grid class and re-render keys
+    const grid = document.getElementById('numpadGrid');
+    grid.classList.toggle('alpha-mode', mode === 'alpha');
+    grid.innerHTML = App.renderNumpadKeys();
 };
 
 App.numpadPress = function(val) {
@@ -1767,6 +2443,7 @@ async function init() {
         await initDB();
         await App.checkForExistingSession();
         App.updateHeaderStatus();
+        App.initLightboxSwipe(); // Initialize swipe gestures
     } catch (err) {
         console.error('Init error:', err);
         App.showToast('Error starting app', 'error');
