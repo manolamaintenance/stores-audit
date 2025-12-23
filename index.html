@@ -43,6 +43,22 @@
             overflow: hidden;
         }
 
+        /* Landscape support */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .main { padding: 10px; }
+            .welcome-hero { padding: 20px 0; }
+            .welcome-icon { font-size: 40px; margin-bottom: 12px; }
+            .welcome-title { font-size: 22px; }
+            .camera-area { padding: 16px; min-height: 120px; }
+            .camera-icon { font-size: 32px; margin-bottom: 8px; }
+            .capture-btn { width: 60px; height: 60px; font-size: 24px; }
+            .progress-section { padding: 10px; margin-bottom: 10px; }
+            .capture-location { padding: 12px; margin-bottom: 10px; }
+            .location-value { font-size: 24px; }
+            .action-grid { gap: 8px; margin-top: 10px; }
+            .btn { padding: 10px 16px; font-size: 13px; }
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
@@ -192,9 +208,26 @@
             justify-content: center;
             font-size: 32px;
             box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
+            position: relative;
         }
         .capture-btn:active { transform: scale(0.95); }
         .capture-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .capture-btn-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--success);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            min-width: 28px;
+            height: 28px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--bg-primary);
+        }
 
         /* Photo Preview */
         .photo-preview { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
@@ -205,6 +238,7 @@
             border-radius: var(--radius-sm);
             overflow: hidden;
             background: var(--bg-tertiary);
+            cursor: pointer;
         }
         .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .photo-count-badge {
@@ -217,6 +251,73 @@
             font-weight: 600;
             padding: 2px 6px;
             border-radius: 4px;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: var(--radius);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .lightbox-prev { left: 15px; }
+        .lightbox-next { right: 15px; }
+        .lightbox-nav:disabled { opacity: 0.3; }
+        .lightbox-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-secondary);
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         /* Action Grid */
@@ -444,6 +545,16 @@
                             <input type="number" class="form-input" id="slotsPerUnit" value="20" min="1">
                         </div>
                     </div>
+                    <div class="form-group" style="margin-top: 8px;">
+                        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                            <input type="checkbox" id="skipSlotLabel" style="width: 20px; height: 20px;">
+                            <span style="color: var(--text-secondary); font-size: 14px;">Skip slot label photos (go straight to items)</span>
+                        </label>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label class="form-label">Auditor Name (optional)</label>
+                        <input type="text" class="form-input" id="auditorName" placeholder="Your name for export">
+                    </div>
                 </div>
                 <button class="btn btn-primary btn-lg btn-block mt-20" onclick="App.startCapture()">Begin Capture →</button>
             </div>
@@ -471,7 +582,10 @@
                     <div class="camera-instruction" id="cameraInstruction">Take a Photo</div>
                     <div class="camera-hint" id="cameraHint">Tap the button below</div>
                     <input type="file" class="camera-input" id="cameraInput" accept="image/*" capture="environment">
-                    <button class="capture-btn" id="captureBtn" onclick="App.triggerCamera()">📷</button>
+                    <button class="capture-btn" id="captureBtn" onclick="App.triggerCamera()">
+                        📷
+                        <span class="capture-btn-badge" id="photoBadge" style="display: none;">0</span>
+                    </button>
                 </div>
 
                 <div class="photo-preview" id="photoPreview"></div>
@@ -484,11 +598,11 @@
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="statTrays">0</div>
-                        <div class="stat-label">Trays</div>
+                        <div class="stat-label" id="statTraysLabel">Trays</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statSlots">0</div>
-                        <div class="stat-label">Slots</div>
+                        <div class="stat-label" id="statSlotsLabel">Slots</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statPhotos">0</div>
@@ -502,6 +616,13 @@
                     <div class="empty-state-desc">Start capturing to see progress</div>
                 </div>
                 <button class="btn btn-success btn-lg btn-block mt-20" id="exportBtn" onclick="App.exportData()">📥 Export All Data</button>
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="App.exportSingleTray()">📤 Export Single Tray</button>
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="App.toggleCompression()">
+                        <span id="compressionLabel">🗜️ Compress: OFF</span>
+                    </button>
+                </div>
+                <div id="storageInfo" style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 12px;"></div>
                 <button class="btn btn-danger btn-block mt-20" onclick="App.confirmClearData()">🗑️ Clear All Data</button>
             </div>
         </main>
@@ -519,6 +640,15 @@
         </nav>
 
         <div class="toast" id="toast"></div>
+
+        <!-- Lightbox -->
+        <div class="lightbox" id="lightbox">
+            <button class="lightbox-close" onclick="App.closeLightbox()">✕</button>
+            <button class="lightbox-nav lightbox-prev" onclick="App.lightboxPrev()">‹</button>
+            <img id="lightboxImg" src="" alt="Full size photo" onclick="App.closeLightbox()">
+            <button class="lightbox-nav lightbox-next" onclick="App.lightboxNext()">›</button>
+            <div class="lightbox-info" id="lightboxInfo">Photo 1 of 3</div>
+        </div>
 
         <div class="modal-overlay" id="modalOverlay" onclick="App.closeModal(event)">
             <div class="modal" onclick="event.stopPropagation()">
@@ -538,7 +668,9 @@ const App = {
         unitName: 'Tray',
         slotName: 'Slot',
         totalUnits: 40,
-        slotsPerUnit: 20
+        slotsPerUnit: 20,
+        skipSlotLabel: false,
+        auditorName: ''
     },
     state: {
         phase: 'idle', // idle, unit, slot, item
@@ -649,6 +781,31 @@ App.resumeSession = function() {
 };
 
 App.showSetup = function() {
+    // Check if there's existing data
+    if (Object.keys(App.data.units).length > 0) {
+        App.showModal(
+            'Start New Session?',
+            '<p style="color: var(--text-secondary);">This will erase your current audit data. Make sure you\'ve exported first!</p>',
+            [
+                { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+                { text: 'Export First', class: 'btn-success', action: 'App.exportThenSetup()' },
+                { text: 'Start Fresh', class: 'btn-danger', action: 'App.confirmNewSession()' }
+            ]
+        );
+    } else {
+        App.showScreen('screenSetup');
+    }
+};
+
+App.exportThenSetup = function() {
+    App.closeModal();
+    App.exportData().then(() => {
+        App.showScreen('screenSetup');
+    });
+};
+
+App.confirmNewSession = function() {
+    App.closeModal();
     App.showScreen('screenSetup');
 };
 
@@ -657,6 +814,8 @@ App.startCapture = function() {
     App.config.slotName = document.getElementById('slotName').value || 'Slot';
     App.config.totalUnits = parseInt(document.getElementById('totalUnits').value) || 40;
     App.config.slotsPerUnit = parseInt(document.getElementById('slotsPerUnit').value) || 20;
+    App.config.skipSlotLabel = document.getElementById('skipSlotLabel').checked;
+    App.config.auditorName = document.getElementById('auditorName').value || '';
     
     App.state = { phase: 'idle', currentUnit: null, currentSlot: null, itemPhotos: [] };
     App.data = { units: {} };
@@ -704,10 +863,18 @@ App.submitSlot = function() {
 
 App.startSlot = function(slotNum) {
     App.state.currentSlot = slotNum;
-    App.state.phase = 'slot';
     App.state.itemPhotos = [];
     const unit = App.data.units[App.state.currentUnit];
-    if (!unit.slots[slotNum]) unit.slots[slotNum] = { photo: null, items: [], empty: false, reason: '' };
+    if (!unit.slots[slotNum]) unit.slots[slotNum] = { photo: null, items: [], empty: false, reason: '', notes: '' };
+    
+    // Skip slot label photo if configured
+    if (App.config.skipSlotLabel) {
+        App.state.phase = 'item';
+        App.showToast(`${App.config.slotName} ${slotNum} - photograph items`, 'success');
+    } else {
+        App.state.phase = 'slot';
+    }
+    
     saveState();
     App.updateCaptureUI();
     App.updateHeaderStatus();
@@ -741,6 +908,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
             await savePhoto(photoId, file);
             App.data.units[unit].photo = photoId;
             App.state.phase = 'slot';
+            App.vibrate();
             App.showToast(`${App.config.unitName} ${unit} label saved`, 'success');
             App.promptForSlot();
             
@@ -749,6 +917,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
             await savePhoto(photoId, file);
             App.data.units[unit].slots[slot].photo = photoId;
             App.state.phase = 'item';
+            App.vibrate();
             App.showToast('Now photograph the items', 'success');
             
         } else if (phase === 'item') {
@@ -757,6 +926,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
             await savePhoto(photoId, file);
             App.data.units[unit].slots[slot].items.push(photoId);
             App.state.itemPhotos.push(photoId);
+            App.vibrate();
             App.showToast(`Item photo ${idx} saved`, 'success');
         }
         
@@ -806,6 +976,36 @@ App.confirmEmpty = function() {
     App.nextSlot();
 };
 
+App.addNote = function() {
+    const unit = App.state.currentUnit;
+    const slot = App.state.currentSlot;
+    const currentNote = App.data.units[unit]?.slots[slot]?.notes || '';
+    
+    App.showModal(
+        'Add Note',
+        `<div class="form-group">
+            <label class="form-label">Note for ${App.config.slotName} ${slot}</label>
+            <input type="text" class="form-input" id="modalInput" placeholder="Check quantity, Damaged, etc..." value="${currentNote}">
+        </div>`,
+        [
+            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
+            { text: 'Save Note', class: 'btn-primary', action: 'App.saveNote()' }
+        ]
+    );
+};
+
+App.saveNote = function() {
+    const note = document.getElementById('modalInput').value;
+    const unit = App.state.currentUnit;
+    const slot = App.state.currentSlot;
+    
+    App.data.units[unit].slots[slot].notes = note;
+    
+    saveState();
+    App.closeModal();
+    App.showToast(note ? 'Note saved' : 'Note cleared', 'success');
+};
+
 App.finishSlot = function() {
     if (App.state.itemPhotos.length === 0) {
         App.showToast('Take at least one photo first', 'error');
@@ -815,12 +1015,73 @@ App.finishSlot = function() {
 };
 
 App.nextSlot = function() {
+    // Remember last slot for auto-increment
+    const lastSlot = App.state.currentSlot;
+    
     App.state.phase = 'slot';
     App.state.currentSlot = null;
     App.state.itemPhotos = [];
     saveState();
     App.updateCaptureUI();
-    App.promptForSlot();
+    
+    // Try to suggest next slot number
+    const suggested = App.incrementSlot(lastSlot);
+    App.promptForSlotWithSuggestion(suggested);
+};
+
+App.incrementSlot = function(slot) {
+    if (!slot) return '';
+    
+    // Handle formats like "1-09" -> "1-10" or "5" -> "6"
+    const dashIndex = slot.lastIndexOf('-');
+    
+    if (dashIndex > 0) {
+        // Format: "1-09"
+        const prefix = slot.substring(0, dashIndex + 1); // "1-"
+        const num = slot.substring(dashIndex + 1); // "09"
+        const nextNum = parseInt(num) + 1;
+        const padded = String(nextNum).padStart(num.length, '0');
+        return prefix + padded;
+    } else {
+        // Simple number: "5" -> "6"
+        const num = parseInt(slot);
+        if (!isNaN(num)) return String(num + 1);
+        return '';
+    }
+};
+
+App.promptForSlotWithSuggestion = function(suggested) {
+    const submitFn = 'App.submitSlot()';
+    
+    document.getElementById('modalTitle').textContent = `${App.config.slotName} in ${App.config.unitName} ${App.state.currentUnit}`;
+    document.getElementById('modalBody').innerHTML = `
+        ${suggested ? `<button class="btn btn-success btn-block" style="margin-bottom: 16px; font-size: 18px;" onclick="App.quickSlot('${suggested}')">📍 Next: ${suggested}</button>` : ''}
+        <div class="numpad-display" id="numpadDisplay">0</div>
+        <div class="numpad-grid">
+            <button class="numpad-btn" onclick="App.numpadPress('1')">1</button>
+            <button class="numpad-btn" onclick="App.numpadPress('2')">2</button>
+            <button class="numpad-btn" onclick="App.numpadPress('3')">3</button>
+            <button class="numpad-btn" onclick="App.numpadPress('4')">4</button>
+            <button class="numpad-btn" onclick="App.numpadPress('5')">5</button>
+            <button class="numpad-btn" onclick="App.numpadPress('6')">6</button>
+            <button class="numpad-btn" onclick="App.numpadPress('7')">7</button>
+            <button class="numpad-btn" onclick="App.numpadPress('8')">8</button>
+            <button class="numpad-btn" onclick="App.numpadPress('9')">9</button>
+            <button class="numpad-btn numpad-dash" onclick="App.numpadPress('-')">-</button>
+            <button class="numpad-btn" onclick="App.numpadPress('0')">0</button>
+            <button class="numpad-btn numpad-clear" onclick="App.numpadClear()">⌫</button>
+        </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+        <button class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="${submitFn}">OK</button>
+    `;
+    document.getElementById('modalOverlay').classList.add('active');
+};
+
+App.quickSlot = function(slot) {
+    App.closeModal();
+    App.startSlot(slot);
 };
 
 App.newUnit = function() {
@@ -871,23 +1132,34 @@ App.updateCaptureUI = function() {
     const inst = document.getElementById('cameraInstruction');
     const hint = document.getElementById('cameraHint');
     const btn = document.getElementById('captureBtn');
+    const badge = document.getElementById('photoBadge');
     
     if (phase === 'idle') {
         inst.textContent = 'Ready';
         hint.textContent = 'Start a unit to begin';
         btn.disabled = false;
+        badge.style.display = 'none';
     } else if (phase === 'unit') {
         inst.textContent = `Photo ${unitName} Label`;
         hint.textContent = `Capture label for ${unitName} ${currentUnit}`;
         btn.disabled = false;
+        badge.style.display = 'none';
     } else if (phase === 'slot') {
         inst.textContent = `Photo ${slotName} Label`;
         hint.textContent = currentSlot ? `Capture label for ${slotName} ${currentSlot}` : 'Enter slot number first';
         btn.disabled = !currentSlot;
+        badge.style.display = 'none';
     } else if (phase === 'item') {
         inst.textContent = 'Photo Items';
         hint.textContent = `Capture items in ${slotName} ${currentSlot}`;
         btn.disabled = false;
+        // Show photo count badge
+        if (itemPhotos.length > 0) {
+            badge.textContent = itemPhotos.length;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
     }
     
     // Photo preview
@@ -911,9 +1183,59 @@ App.updatePhotoPreview = async function() {
             const div = document.createElement('div');
             div.className = 'photo-thumb';
             div.innerHTML = `<img src="${url}"><span class="photo-count-badge">${i + 1}</span>`;
+            div.onclick = () => App.openLightbox(url, i + 1, App.state.itemPhotos.length);
             container.appendChild(div);
         }
     }
+};
+
+App.lightboxState = { urls: [], index: 0 };
+
+App.openLightbox = function(url, index, total) {
+    App.lightboxState.index = index - 1;
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightboxInfo').textContent = `Photo ${index} of ${total}`;
+    document.getElementById('lightbox').classList.add('active');
+    App.updateLightboxNav();
+};
+
+App.updateLightboxNav = function() {
+    const total = App.state.itemPhotos.length;
+    const idx = App.lightboxState.index;
+    document.querySelector('.lightbox-prev').disabled = idx <= 0;
+    document.querySelector('.lightbox-next').disabled = idx >= total - 1;
+};
+
+App.lightboxPrev = async function() {
+    if (App.lightboxState.index > 0) {
+        App.lightboxState.index--;
+        const photoId = App.state.itemPhotos[App.lightboxState.index];
+        const blob = await getPhoto(photoId);
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxInfo').textContent = `Photo ${App.lightboxState.index + 1} of ${App.state.itemPhotos.length}`;
+        }
+        App.updateLightboxNav();
+    }
+};
+
+App.lightboxNext = async function() {
+    if (App.lightboxState.index < App.state.itemPhotos.length - 1) {
+        App.lightboxState.index++;
+        const photoId = App.state.itemPhotos[App.lightboxState.index];
+        const blob = await getPhoto(photoId);
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxInfo').textContent = `Photo ${App.lightboxState.index + 1} of ${App.state.itemPhotos.length}`;
+        }
+        App.updateLightboxNav();
+    }
+};
+
+App.closeLightbox = function() {
+    document.getElementById('lightbox').classList.remove('active');
 };
 
 App.updateActionButtons = function() {
@@ -937,6 +1259,7 @@ App.updateActionButtons = function() {
             <button class="btn btn-warning" onclick="App.markSlotEmpty()">⬜ Empty</button>
             <button class="btn btn-danger" onclick="App.deleteLastPhoto()" ${itemPhotos.length === 0 ? 'disabled' : ''}>🗑️ Delete</button>
             <button class="btn btn-success btn-block" onclick="App.finishSlot()">✓ Done → Next ${slotName}</button>
+            <button class="btn btn-secondary" onclick="App.addNote()">📝 Note</button>
             <button class="btn btn-secondary" onclick="App.newUnit()">📦 New ${unitName}</button>
         `;
     }
@@ -993,6 +1316,13 @@ App.updateReviewUI = function() {
     document.getElementById('statSlots').textContent = slotCount;
     document.getElementById('statPhotos').textContent = photoCount;
     
+    // Update labels to match config
+    document.getElementById('statTraysLabel').textContent = App.config.unitName + 's';
+    document.getElementById('statSlotsLabel').textContent = App.config.slotName + 's';
+    
+    // Calculate and show storage used
+    App.calculateStorage();
+    
     const container = document.getElementById('trayList');
     const emptyState = document.getElementById('emptyState');
     const exportBtn = document.getElementById('exportBtn');
@@ -1046,8 +1376,9 @@ App.updateReviewUI = function() {
                                 <div class="slot-status ${status}">${icon}</div>
                                 <div class="slot-info">
                                     <div class="slot-name">${App.config.slotName} ${sk}</div>
-                                    <div class="slot-meta">${meta}</div>
+                                    <div class="slot-meta">${meta}${slot.notes ? ' • ' + slot.notes : ''}</div>
                                 </div>
+                                <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 12px;" onclick="App.editSlot('${unitKey}', '${sk}')">Edit</button>
                             </div>`;
                         }).join('')}
                     </div>
@@ -1056,6 +1387,178 @@ App.updateReviewUI = function() {
         `;
     }
     container.innerHTML = html;
+};
+
+// ============================================
+// EDIT SLOT
+// ============================================
+App.editSlot = function(unitKey, slotKey) {
+    App.state.currentUnit = unitKey;
+    App.state.currentSlot = slotKey;
+    App.state.phase = 'item';
+    
+    // Load existing photos into state
+    const slot = App.data.units[unitKey].slots[slotKey];
+    App.state.itemPhotos = [...slot.items];
+    
+    saveState();
+    App.showScreen('screenCapture');
+    App.updateCaptureUI();
+    App.updateHeaderStatus();
+    App.showToast(`Editing ${App.config.slotName} ${slotKey}`, 'success');
+};
+
+App.compressionEnabled = false;
+
+App.toggleCompression = function() {
+    App.compressionEnabled = !App.compressionEnabled;
+    document.getElementById('compressionLabel').textContent = 
+        App.compressionEnabled ? '🗜️ Compress: ON' : '🗜️ Compress: OFF';
+    App.showToast(App.compressionEnabled ? 'Photos will be compressed' : 'Full quality photos', 'success');
+};
+
+App.exportSingleTray = function() {
+    const units = Object.keys(App.data.units);
+    if (units.length === 0) {
+        App.showToast('No trays to export', 'error');
+        return;
+    }
+    
+    let html = '<div style="max-height: 300px; overflow-y: auto;">';
+    units.forEach(u => {
+        const slotCount = Object.keys(App.data.units[u].slots).length;
+        html += `<button class="btn btn-secondary btn-block" style="margin-bottom: 8px;" onclick="App.exportTray('${u}')">${App.config.unitName} ${u} (${slotCount} slots)</button>`;
+    });
+    html += '</div>';
+    
+    App.showModal(
+        'Export Single Tray',
+        html,
+        [{ text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' }]
+    );
+};
+
+App.exportTray = async function(unitKey) {
+    App.closeModal();
+    App.showToast('Preparing export...', 'success');
+    
+    try {
+        const zip = new JSZip();
+        const unit = App.data.units[unitKey];
+        const unitFolder = zip.folder(`${App.config.unitName}_${unitKey}`);
+        
+        if (unit.photo) {
+            const blob = await App.getPhotoForExport(unit.photo);
+            if (blob) unitFolder.file('_label.jpg', blob);
+        }
+        
+        for (const slotKey in unit.slots) {
+            const slot = unit.slots[slotKey];
+            const slotFolder = unitFolder.folder(`${App.config.slotName}_${slotKey}`);
+            
+            if (slot.empty) {
+                slotFolder.file('_EMPTY.txt', slot.reason || 'Empty');
+                continue;
+            }
+            
+            if (slot.photo) {
+                const blob = await App.getPhotoForExport(slot.photo);
+                if (blob) slotFolder.file('_label.jpg', blob);
+            }
+            
+            for (let i = 0; i < slot.items.length; i++) {
+                const blob = await App.getPhotoForExport(slot.items[i]);
+                if (blob) slotFolder.file(`item_${String(i + 1).padStart(2, '0')}.jpg`, blob);
+            }
+        }
+        
+        const content = await zip.generateAsync({ type: 'blob' });
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        const filename = `${App.config.unitName}_${unitKey}_${dateStr}.zip`;
+        
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([content], filename)] })) {
+            await navigator.share({
+                files: [new File([content], filename, { type: 'application/zip' })],
+                title: `${App.config.unitName} ${unitKey} Export`
+            });
+        } else {
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        App.showToast('Export complete!', 'success');
+    } catch (err) {
+        console.error('Export error:', err);
+        App.showToast('Export failed', 'error');
+    }
+};
+
+App.getPhotoForExport = async function(photoId) {
+    const blob = await getPhoto(photoId);
+    if (!blob || !App.compressionEnabled) return blob;
+    
+    // Compress image
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxSize = 1200;
+            let w = img.width;
+            let h = img.height;
+            
+            if (w > maxSize || h > maxSize) {
+                if (w > h) {
+                    h = Math.round(h * maxSize / w);
+                    w = maxSize;
+                } else {
+                    w = Math.round(w * maxSize / h);
+                    h = maxSize;
+                }
+            }
+            
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            canvas.toBlob(resolve, 'image/jpeg', 0.7);
+        };
+        img.onerror = () => resolve(blob);
+        img.src = URL.createObjectURL(blob);
+    });
+};
+
+App.calculateStorage = async function() {
+    try {
+        const tx = App.db.transaction('photos', 'readonly');
+        const store = tx.objectStore('photos');
+        const request = store.getAll();
+        
+        request.onsuccess = function() {
+            let totalSize = 0;
+            const photos = request.result || [];
+            photos.forEach(p => {
+                if (p.blob && p.blob.size) {
+                    totalSize += p.blob.size;
+                }
+            });
+            
+            const sizeStr = totalSize < 1024 * 1024 
+                ? (totalSize / 1024).toFixed(1) + ' KB'
+                : (totalSize / (1024 * 1024)).toFixed(1) + ' MB';
+            
+            document.getElementById('storageInfo').textContent = `Storage used: ${sizeStr}`;
+        };
+    } catch (err) {
+        console.error('Storage calc error:', err);
+    }
 };
 
 // ============================================
@@ -1073,7 +1576,7 @@ App.exportData = async function() {
             const unitFolder = zip.folder(`${App.config.unitName}_${unitKey}`);
             
             if (unit.photo) {
-                const blob = await getPhoto(unit.photo);
+                const blob = await App.getPhotoForExport(unit.photo);
                 if (blob) unitFolder.file('_label.jpg', blob);
             }
             
@@ -1087,6 +1590,7 @@ App.exportData = async function() {
                     slot: slotKey,
                     empty: slot.empty,
                     reason: slot.reason || '',
+                    notes: slot.notes || '',
                     items: slot.items.length
                 });
                 
@@ -1096,25 +1600,26 @@ App.exportData = async function() {
                 }
                 
                 if (slot.photo) {
-                    const blob = await getPhoto(slot.photo);
+                    const blob = await App.getPhotoForExport(slot.photo);
                     if (blob) slotFolder.file('_label.jpg', blob);
                 }
                 
                 for (let i = 0; i < slot.items.length; i++) {
-                    const blob = await getPhoto(slot.items[i]);
+                    const blob = await App.getPhotoForExport(slot.items[i]);
                     if (blob) slotFolder.file(`item_${String(i + 1).padStart(2, '0')}.jpg`, blob);
                 }
             }
         }
         
         // Manifest CSV
-        const csv = ['Location,Unit,Slot,Empty,Reason,Items'];
-        manifest.forEach(m => csv.push(`${m.location},${m.unit},${m.slot},${m.empty ? 'Yes' : 'No'},${m.reason},${m.items}`));
+        const csv = ['Location,Unit,Slot,Empty,Reason,Notes,Items'];
+        manifest.forEach(m => csv.push(`${m.location},${m.unit},${m.slot},${m.empty ? 'Yes' : 'No'},"${m.reason}","${m.notes}",${m.items}`));
         zip.file('manifest.csv', csv.join('\n'));
         
         // Summary
         const summary = `STORES AUDIT EXPORT
 Date: ${new Date().toLocaleString()}
+${App.config.auditorName ? 'Auditor: ' + App.config.auditorName + '\n' : ''}
 Units: ${Object.keys(App.data.units).length}
 Slots: ${manifest.length}
 Empty: ${manifest.filter(m => m.empty).length}
@@ -1123,7 +1628,11 @@ Photos: ${App.countTotalPhotos()}`;
         
         // Generate ZIP
         const content = await zip.generateAsync({ type: 'blob' });
-        const filename = `audit_${new Date().toISOString().slice(0, 10)}.zip`;
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+        const auditorStr = App.config.auditorName ? `_${App.config.auditorName.replace(/\s+/g, '_')}` : '';
+        const filename = `audit_${dateStr}_${timeStr}${auditorStr}.zip`;
         
         // Try native share first (works on iOS), fallback to download
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([content], filename)] })) {
@@ -1242,6 +1751,12 @@ App.showToast = function(msg, type = '') {
     toast.className = 'toast' + (type ? ' ' + type : '');
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2500);
+};
+
+App.vibrate = function() {
+    if (navigator.vibrate) {
+        navigator.vibrate(50);
+    }
 };
 
 // ============================================
