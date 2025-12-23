@@ -318,6 +318,42 @@
         .modal-body { padding: 20px; }
         .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }
 
+        /* Numpad */
+        .numpad-display {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 16px;
+            color: var(--accent);
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .numpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .numpad-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .numpad-btn:active { background: var(--accent); color: var(--bg-primary); }
+        .numpad-dash { color: var(--warning); }
+        .numpad-clear { color: var(--danger); }
+
         /* Bottom Nav */
         .bottom-nav {
             flex-shrink: 0;
@@ -634,29 +670,12 @@ App.startCapture = function() {
 // CAPTURE WORKFLOW
 // ============================================
 App.promptForUnit = function() {
-    App.showModal(
-        `Enter ${App.config.unitName} Number`,
-        `<div class="form-group">
-            <label class="form-label">Which ${App.config.unitName.toLowerCase()}?</label>
-            <input type="text" class="form-input" id="modalInput" placeholder="e.g., 1 or A" autofocus>
-        </div>`,
-        [
-            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
-            { text: 'Start', class: 'btn-primary', action: 'App.submitUnit()' }
-        ]
-    );
-    setTimeout(() => {
-        const input = document.getElementById('modalInput');
-        if (input) {
-            input.focus();
-            input.onkeypress = (e) => { if (e.key === 'Enter') App.submitUnit(); };
-        }
-    }, 100);
+    App.showNumpadModal(`Enter ${App.config.unitName} Number`, 'unit');
 };
 
 App.submitUnit = function() {
-    const val = document.getElementById('modalInput').value.trim();
-    if (!val) return;
+    const val = document.getElementById('numpadDisplay').textContent.trim();
+    if (!val || val === '0') return;
     App.closeModal();
     App.startUnit(val);
 };
@@ -673,29 +692,12 @@ App.startUnit = function(unitNum) {
 };
 
 App.promptForSlot = function() {
-    App.showModal(
-        `Enter ${App.config.slotName} Number`,
-        `<div class="form-group">
-            <label class="form-label">${App.config.slotName} in ${App.config.unitName} ${App.state.currentUnit}</label>
-            <input type="text" class="form-input" id="modalInput" placeholder="e.g., 1 or A" autofocus>
-        </div>`,
-        [
-            { text: 'Cancel', class: 'btn-secondary', action: 'App.closeModal()' },
-            { text: 'Start', class: 'btn-primary', action: 'App.submitSlot()' }
-        ]
-    );
-    setTimeout(() => {
-        const input = document.getElementById('modalInput');
-        if (input) {
-            input.focus();
-            input.onkeypress = (e) => { if (e.key === 'Enter') App.submitSlot(); };
-        }
-    }, 100);
+    App.showNumpadModal(`${App.config.slotName} in ${App.config.unitName} ${App.state.currentUnit}`, 'slot');
 };
 
 App.submitSlot = function() {
-    const val = document.getElementById('modalInput').value.trim();
-    if (!val) return;
+    const val = document.getElementById('numpadDisplay').textContent.trim();
+    if (!val || val === '0') return;
     App.closeModal();
     App.startSlot(val);
 };
@@ -1180,6 +1182,52 @@ App.showModal = function(title, body, buttons) {
         `<button class="btn ${b.class}" onclick="${b.action}">${b.text}</button>`
     ).join('');
     document.getElementById('modalOverlay').classList.add('active');
+};
+
+App.showNumpadModal = function(title, type) {
+    const submitFn = type === 'unit' ? 'App.submitUnit()' : 'App.submitSlot()';
+    
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="numpad-display" id="numpadDisplay">0</div>
+        <div class="numpad-grid">
+            <button class="numpad-btn" onclick="App.numpadPress('1')">1</button>
+            <button class="numpad-btn" onclick="App.numpadPress('2')">2</button>
+            <button class="numpad-btn" onclick="App.numpadPress('3')">3</button>
+            <button class="numpad-btn" onclick="App.numpadPress('4')">4</button>
+            <button class="numpad-btn" onclick="App.numpadPress('5')">5</button>
+            <button class="numpad-btn" onclick="App.numpadPress('6')">6</button>
+            <button class="numpad-btn" onclick="App.numpadPress('7')">7</button>
+            <button class="numpad-btn" onclick="App.numpadPress('8')">8</button>
+            <button class="numpad-btn" onclick="App.numpadPress('9')">9</button>
+            <button class="numpad-btn numpad-dash" onclick="App.numpadPress('-')">-</button>
+            <button class="numpad-btn" onclick="App.numpadPress('0')">0</button>
+            <button class="numpad-btn numpad-clear" onclick="App.numpadClear()">⌫</button>
+        </div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `
+        <button class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="${submitFn}">OK</button>
+    `;
+    document.getElementById('modalOverlay').classList.add('active');
+};
+
+App.numpadPress = function(val) {
+    const display = document.getElementById('numpadDisplay');
+    if (display.textContent === '0' && val !== '-') {
+        display.textContent = val;
+    } else {
+        display.textContent += val;
+    }
+};
+
+App.numpadClear = function() {
+    const display = document.getElementById('numpadDisplay');
+    if (display.textContent.length > 1) {
+        display.textContent = display.textContent.slice(0, -1);
+    } else {
+        display.textContent = '0';
+    }
 };
 
 App.closeModal = function(e) {
