@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stores-audit-v11';
+const CACHE_NAME = 'stores-audit-v13';
 const ASSETS = [
     './',
     './index.html',

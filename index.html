@@ -340,6 +340,12 @@
 
         /* Tray Accordion */
         .tray-accordion { background: var(--bg-secondary); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+        .tray-header-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 12px;
+        }
         .tray-header {
             display: flex;
             align-items: center;
@@ -348,16 +354,28 @@
             cursor: pointer;
             background: var(--bg-secondary);
             border: none;
-            width: 100%;
+            flex: 1;
             text-align: left;
             color: var(--text-primary);
             font-family: inherit;
         }
+        .tray-header:active { background: var(--bg-tertiary); }
         .tray-header-info { display: flex; align-items: center; gap: 12px; }
         .tray-header-icon { font-size: 24px; }
         .tray-header-title { font-weight: 600; font-size: 16px; }
         .tray-header-count { font-size: 13px; color: var(--text-secondary); }
-        .tray-header-arrow { font-size: 20px; color: var(--text-muted); transition: transform 0.2s; }
+        .tray-header-arrow { 
+            font-size: 20px; 
+            color: var(--text-muted); 
+            transition: transform 0.2s;
+            background: var(--bg-tertiary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .tray-accordion.open .tray-header-arrow { transform: rotate(180deg); }
         .tray-content { display: none; padding: 0 16px 16px; }
         .tray-accordion.open .tray-content { display: block; }
@@ -560,14 +578,15 @@
             background: var(--accent);
             color: var(--bg-primary);
             border: none;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 11px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            margin-left: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        .continue-btn:active { transform: scale(0.95); }
+        .continue-btn:active { transform: scale(0.95); background: var(--accent-dim); }
 
         /* Save Indicator */
         .save-indicator {
@@ -1634,8 +1653,8 @@ App.updatePhotoPreview = async function() {
     // Add reorder button if multiple photos
     if (App.state.itemPhotos.length > 1) {
         const reorderBtn = document.createElement('button');
-        reorderBtn.className = 'btn btn-secondary';
-        reorderBtn.style.cssText = 'width: 100%; margin-top: 8px; font-size: 13px;';
+        reorderBtn.className = 'btn btn-primary';
+        reorderBtn.style.cssText = 'width: 100%; margin-top: 12px; padding: 14px; font-size: 15px;';
         reorderBtn.innerHTML = '↕️ Reorder Photos';
         reorderBtn.onclick = () => App.showReorderModal();
         container.appendChild(reorderBtn);
@@ -1657,30 +1676,35 @@ App.reorderPhotos = async function(fromIndex, toIndex) {
     App.showToast('Photos reordered', 'success');
 };
 
-App.showReorderModal = function() {
+App.showReorderModal = async function() {
     let html = '<p style="color: var(--text-secondary); margin-bottom: 16px;">Tap arrows to move photos:</p>';
-    html += '<div style="max-height: 300px; overflow-y: auto;">';
+    html += '<div style="max-height: 400px; overflow-y: auto;">';
     
     for (let i = 0; i < App.state.itemPhotos.length; i++) {
+        const photoId = App.state.itemPhotos[i];
+        const blob = await getPhoto(photoId);
+        const thumbUrl = blob ? URL.createObjectURL(blob) : '';
+        
         html += `
-            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-primary); border-radius: 8px; margin-bottom: 8px;">
-                <span style="font-weight: 600; width: 24px;">${i + 1}</span>
-                <span style="flex: 1; color: var(--text-secondary);">Photo ${i + 1}</span>
-                <button class="btn btn-secondary" style="padding: 8px;" ${i === 0 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i - 1})">↑</button>
-                <button class="btn btn-secondary" style="padding: 8px;" ${i === App.state.itemPhotos.length - 1 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i + 1})">↓</button>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-primary); border-radius: 8px; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 18px; width: 28px; color: var(--accent);">${i + 1}</span>
+                ${thumbUrl ? `<img src="${thumbUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">` : ''}
+                <span style="flex: 1; color: var(--text-secondary); font-size: 14px;">Photo ${i + 1}</span>
+                <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 18px;" ${i === 0 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i - 1})">↑</button>
+                <button class="btn btn-secondary" style="padding: 10px 14px; font-size: 18px;" ${i === App.state.itemPhotos.length - 1 ? 'disabled' : ''} onclick="App.movePhoto(${i}, ${i + 1})">↓</button>
             </div>
         `;
     }
     html += '</div>';
     
-    App.showModal('Reorder Photos', html, [
+    App.showModal('↕️ Reorder Photos', html, [
         { text: 'Done', class: 'btn-primary', action: 'App.closeModal()' }
     ]);
 };
 
 App.movePhoto = async function(from, to) {
     await App.reorderPhotos(from, to);
-    App.showReorderModal(); // Refresh the modal
+    await App.showReorderModal(); // Refresh the modal with new order
 };
 
 App.lightboxState = { urls: [], index: 0, touchStartX: 0, touchStartY: 0 };
@@ -1933,19 +1957,19 @@ App.renderReviewList = function() {
         
         html += `
             <div class="tray-accordion ${isOpen}">
-                <button class="tray-header" onclick="this.parentElement.classList.toggle('open')">
-                    <div class="tray-header-info">
-                        <span class="tray-header-icon">📦</span>
-                        <div>
-                            <div class="tray-header-title">${App.config.unitName} ${unitKey}</div>
-                            <div class="tray-header-count">${slotKeys.length} ${App.config.slotName.toLowerCase()}${slotKeys.length !== 1 ? 's' : ''}${emptyCount ? `, ${emptyCount} empty` : ''}</div>
+                <div class="tray-header-wrapper">
+                    <button class="tray-header" onclick="this.closest('.tray-accordion').classList.toggle('open')">
+                        <div class="tray-header-info">
+                            <span class="tray-header-icon">📦</span>
+                            <div>
+                                <div class="tray-header-title">${App.config.unitName} ${unitKey}</div>
+                                <div class="tray-header-count">${slotKeys.length} ${App.config.slotName.toLowerCase()}${slotKeys.length !== 1 ? 's' : ''}${emptyCount ? `, ${emptyCount} empty` : ''}</div>
+                            </div>
                         </div>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <button class="continue-btn" onclick="event.stopPropagation(); App.continueFromUnit('${unitKey}')">▶ Continue</button>
                         <span class="tray-header-arrow">▼</span>
-                    </div>
-                </button>
+                    </button>
+                    <button class="continue-btn" onclick="App.continueFromUnit('${unitKey}')">▶ Continue</button>
+                </div>
                 <div class="tray-content">
                     <div class="slot-list">
                         ${slotKeys.map(sk => {
@@ -2193,6 +2217,20 @@ App.exportData = async function() {
                 const slot = unit.slots[slotKey];
                 const slotFolder = unitFolder.folder(`${App.config.slotName}_${slotKey}`);
                 
+                // Build list of photo filenames
+                const photoFiles = [];
+                if (slot.photo) {
+                    photoFiles.push('_label.jpg');
+                }
+                for (let i = 0; i < slot.items.length; i++) {
+                    photoFiles.push(`item_${String(i + 1).padStart(2, '0')}.jpg`);
+                }
+                
+                // Build full paths for manifest
+                const photoPaths = photoFiles.map(f => 
+                    `${App.config.unitName}_${unitKey}/${App.config.slotName}_${slotKey}/${f}`
+                );
+                
                 manifest.push({
                     location: `${unitKey}-${slotKey}`,
                     unit: unitKey,
@@ -2200,7 +2238,8 @@ App.exportData = async function() {
                     empty: slot.empty,
                     reason: slot.reason || '',
                     notes: slot.notes || '',
-                    items: slot.items.length
+                    itemCount: slot.items.length,
+                    photos: photoPaths.join('; ')
                 });
                 
                 if (slot.empty) {
@@ -2220,9 +2259,9 @@ App.exportData = async function() {
             }
         }
         
-        // Manifest CSV
-        const csv = ['Location,Unit,Slot,Empty,Reason,Notes,Items'];
-        manifest.forEach(m => csv.push(`${m.location},${m.unit},${m.slot},${m.empty ? 'Yes' : 'No'},"${m.reason}","${m.notes}",${m.items}`));
+        // Manifest CSV with photo filenames
+        const csv = ['Location,Unit,Slot,Empty,Reason,Notes,ItemCount,Photos'];
+        manifest.forEach(m => csv.push(`${m.location},${m.unit},${m.slot},${m.empty ? 'Yes' : 'No'},"${m.reason}","${m.notes}",${m.itemCount},"${m.photos}"`));
         zip.file('manifest.csv', csv.join('\n'));
         
         // Summary
